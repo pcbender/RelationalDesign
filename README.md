@@ -30,3 +30,12 @@ python3 -m http.server
 Then visit `http://localhost:8000/index.html` in your browser.
 
 Any static hosting service such as GitHub Pages or Netlify can also serve these files. Just copy the repository contents to your host of choice and point your browser at the hosted URL.
+
+## Templates
+
+The `templates/` directory contains stripped-down HTML examples that can be copied when creating new pages:
+
+- `home-template.html` – layout for the site homepage.
+- `article-template.html` – layout for content articles.
+
+Copy the desired file, rename it, and replace the placeholder comments with your content. The templates already include the dynamic navigation and footer logic so only the page-specific sections need to be filled in.
