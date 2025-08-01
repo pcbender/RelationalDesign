@@ -1,0 +1,20 @@
+[
+    {
+        "id": 1,
+        "title": "New Website Launch",
+        "date": "2025-07-20",
+        "excerpt": "We're excited to announce the launch of our new website built with modern technologies including Alpine.js for enhanced user experience."
+    },
+    {
+        "id": 2,
+        "title": "Enhanced Performance",
+        "date": "2025-07-15",
+        "excerpt": "Our latest updates include significant performance improvements and a more intuitive user interface design."
+    },
+    {
+        "id": 3,
+        "title": "Mobile Optimization",
+        "date": "2025-07-10",
+        "excerpt": "Complete mobile optimization ensures our website looks and performs perfectly on all devices and screen sizes."
+    }
+]

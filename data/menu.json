@@ -1,0 +1,7 @@
+[
+    { "name": "Home", "href": "index.html", "active": true },
+    { "name": "About", "href": "about.html", "active": false },
+    { "name": "Articles", "href": "articles.html", "active": false },
+    { "name": "Blog", "href": "blog.html", "active": false },
+    { "name": "Contact", "href": "contact.html", "active": false }
+]

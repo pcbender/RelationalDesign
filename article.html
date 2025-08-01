@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Article Title - Relational Design</title>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.3/cdn.min.js"></script>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+    <!-- Site Data (JSON) -->
+    <script>
+        window.articleData = {
+            article: {
+                id: 1,
+                title: 'Building Modern Websites with Alpine.js',
+                subtitle: 'A comprehensive guide to creating dynamic, lightweight web applications using Alpine.js, HTML5, and CSS3',
+                category: 'Web Development',
+                author: {
+                    name: 'John Developer',
+                    bio: 'Senior web developer with 10+ years of experience building modern web applications. Passionate about clean code and user experience.',
+                    avatar: 'JD'
+                },
+                publishDate: '2025-07-24',
+                readTime: '8 min read',
+                currentPage: 1,
+                totalPages: 3
+            },
+            tableOfContents: [
+                { id: 'introduction', title: 'Introduction', level: 2 },
+                { id: 'getting-started', title: 'Getting Started', level: 2 },
+                { id: 'basic-setup', title: 'Basic Setup', level: 3 },
+                { id: 'alpine-basics', title: 'Alpine.js Basics', level: 2 },
+                { id: 'data-binding', title: 'Data Binding', level: 3 },
+                { id: 'event-handling', title: 'Event Handling', level: 3 },
+                { id: 'advanced-features', title: 'Advanced Features', level: 2 },
+                { id: 'conclusion', title: 'Conclusion', level: 2 }
+            ],
+            relatedArticles: [
+                {
+                    id: 2,
+                    title: 'CSS Grid Layout Mastery',
+                    excerpt: 'Learn how to create complex layouts with CSS Grid.',
+                    url: 'article-2.html'
+                },
+                {
+                    id: 3,
+                    title: 'JavaScript ES6+ Features',
+                    excerpt: 'Modern JavaScript features every developer should know.',
+                    url: 'article-3.html'
+                },
+                {
+                    id: 4,
+                    title: 'Responsive Design Principles',
+                    excerpt: 'Building websites that work on all devices.',
+                    url: 'article-4.html'
+                }
+            ]
+        };
+    </script>
+
+    <!-- Reading Progress Bar -->
+    <div class="progress-bar" x-data="{ 
+        progress: 0,
+        updateProgress() {
+            const article = document.querySelector('.article-body');
+            if (!article) return;
+            
+            const scrollTop = window.pageYOffset;
+            const docHeight = article.offsetHeight;
+            const winHeight = window.innerHeight;
+            const scrollPercent = scrollTop / (docHeight - winHeight);
+            this.progress = Math.min(100, Math.max(0, scrollPercent * 100));
+        }
+    }" @scroll.window="updateProgress()" x-init="updateProgress()">
+        <div class="progress-fill" :style="`width: ${progress}%`"></div>
+    </div>
+
+    <!-- Header -->
+    <header x-data="{ 
+        mobileMenuOpen: false
+    }">
+        <nav x-data="{ navigation: [] }"
+            x-init="fetch('/data/menu.json').then(r => r.json()).then(data => navigation = data)">
+            <div class="logo">Relational Design <img src="/img/TriGram.png" alt="Logo" /></div>
+
+            <!-- Desktop Menu -->
+            <ul class="nav-menu">
+                <template x-for="item in navigation" :key="item.name">
+                    <li>
+                        <a :href="item.href" :class="item.active ? 'text-blue-600' : ''" x-text="item.name">
+                        </a>
+                    </li>
+                </template>
+            </ul>
+
+            <!-- Mobile Menu Button -->
+            <button class="mobile-menu-btn" @click="mobileMenuOpen = !mobileMenuOpen">
+                <span x-show="!mobileMenuOpen">☰</span>
+                <span x-show="mobileMenuOpen">✕</span>
+            </button>
+
+            <!-- Mobile Menu -->
+            <div class="mobile-menu" :class="mobileMenuOpen ? 'show' : ''">
+                <ul>
+                    <template x-for="item in navigation" :key="item.name">
+                        <li>
+                            <a :href="item.href" x-text="item.name" @click="mobileMenuOpen = false">
+                            </a>
+                        </li>
+                    </template>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Article Container -->
+    <div class="article-container" x-data="{ 
+        article: window.articleData.article,
+        toc: window.articleData.tableOfContents,
+        related: window.articleData.relatedArticles,
+        activeSection: '',
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        },
+        updateActiveSection() {
+            const sections = document.querySelectorAll('.article-body h2, .article-body h3');
+            const headerHeight = 80;
+            let current = '';
+            
+            sections.forEach(section => {
+                const rect = section.getBoundingClientRect();
+                if (rect.top <= headerHeight + 50) {
+                    current = section.id;
+                }
+            });
+            
+            this.activeSection = current;
+        }
+    }" @scroll.window="updateActiveSection()" x-init="updateActiveSection()">
+
+        <!-- Table of Contents Sidebar -->
+        <aside class="toc-sidebar">
+            <h3 class="toc-title">Table of Contents</h3>
+            <ul class="toc-list">
+                <template x-for="item in toc" :key="item.id">
+                    <li>
+                        <a :href="`#${item.id}`" :class="[
+                               `toc-level-${item.level}`,
+                               activeSection === item.id ? 'active' : ''
+                           ]" x-text="item.title">
+                        </a>
+                    </li>
+                </template>
+            </ul>
+        </aside>
+
+        <!-- Article Content -->
+        <article class="article-content">
+            <!-- Article Header -->
+            <div class="article-header">
+                <div class="article-meta">
+                    <span class="article-category" x-text="article.category"></span>
+                    <span x-text="formatDate(article.publishDate)"></span>
+                    <span x-text="article.readTime"></span>
+                </div>
+                <h1 class="article-title" x-text="article.title"></h1>
+                <p class="article-subtitle" x-text="article.subtitle"></p>
+            </div>
+
+            <!-- Article Body -->
+            <div class="article-body">
+                <h2 id="introduction">Introduction</h2>
+                <p>Alpine.js is a rugged, minimal tool for composing behavior directly in your markup. Think of it like
+                    Tailwind for JavaScript - you get the power of a framework with the simplicity of vanilla
+                    JavaScript.</p>
+
+                <p>In this comprehensive guide, we'll explore how to build modern, dynamic websites using Alpine.js
+                    alongside HTML5 and CSS3. We'll cover everything from basic setup to advanced patterns that will
+                    help you create engaging user experiences.</p>
+
+                <blockquote>
+                    "Alpine.js offers the reactive and declarative nature of big frameworks like Vue or React at a much
+                    lower cost." - Caleb Porzio, Creator of Alpine.js
+                </blockquote>
+
+                <h2 id="getting-started">Getting Started</h2>
+                <p>Getting started with Alpine.js is incredibly straightforward. You can include it via CDN or install
+                    it through npm. For most projects, the CDN approach is the quickest way to get up and running.</p>
+
+                <h3 id="basic-setup">Basic Setup</h3>
+                <p>To include Alpine.js in your project, simply add the following script tag to your HTML:</p>
+
+                <pre><code>&lt;script defer src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.3/cdn.min.js"&gt;&lt;/script&gt;</code></pre>
+
+                <p>The <code>defer</code> attribute ensures that Alpine.js loads after your HTML is parsed, which is
+                    important for proper initialization.</p>
+
+                <h2 id="alpine-basics">Alpine.js Basics</h2>
+                <p>Alpine.js uses directives that you add directly to your HTML elements. These directives start with
+                    <code>x-</code> and provide the reactive behavior you need.</p>
+
+                <h3 id="data-binding">Data Binding</h3>
+                <p>The foundation of Alpine.js is the <code>x-data</code> directive, which defines a scope of reactive
+                    data. Here's a simple example:</p>
+
+                <pre><code>&lt;div x-data="{ message: 'Hello, Alpine!' }"&gt;
+    &lt;p x-text="message"&gt;&lt;/p&gt;
+&lt;/div&gt;</code></pre>
+
+                <p>This creates a reactive component where the paragraph will automatically update when the message
+                    changes.</p>
+
+                <h3 id="event-handling">Event Handling</h3>
+                <p>Event handling in Alpine.js is intuitive and powerful. You can respond to any DOM event using the
+                    <code>x-on</code> directive or its shorthand <code>@</code>:</p>
+
+                <pre><code>&lt;button @click="count++"&gt;Clicked &lt;span x-text="count"&gt;&lt;/span&gt; times&lt;/button&gt;</code></pre>
+
+                <figure class="article-image">
+                    <img src="https://via.placeholder.com/600x300/2563eb/ffffff?text=Alpine.js+in+Action"
+                        alt="Alpine.js Example">
+                    <figcaption>Alpine.js makes it easy to add interactivity to your HTML</figcaption>
+                </figure>
+
+                <h2 id="advanced-features">Advanced Features</h2>
+                <p>Alpine.js includes many advanced features that make it suitable for complex applications. These
+                    include computed properties, watchers, and lifecycle hooks.</p>
+
+                <p>One of the most powerful features is the ability to create reusable components and share state
+                    between different parts of your application using Alpine.store().</p>
+
+                <ul>
+                    <li>Component composition with x-data</li>
+                    <li>State management with Alpine.store()</li>
+                    <li>Custom directives and magic properties</li>
+                    <li>Integration with other libraries</li>
+                </ul>
+
+                <h2 id="conclusion">Conclusion</h2>
+                <p>Alpine.js represents a perfect middle ground between vanilla JavaScript and heavy frameworks. It
+                    gives you the reactive capabilities you need while keeping your HTML semantic and your JavaScript
+                    minimal.</p>
+
+                <p>Whether you're building a simple interactive website or a more complex web application, Alpine.js
+                    provides the tools you need without the overhead of larger frameworks.</p>
+            </div>
+
+            <!-- Author Bio -->
+            <div class="author-bio">
+                <div class="author-avatar" x-text="article.author.avatar"></div>
+                <div class="author-info">
+                    <h4 x-text="article.author.name"></h4>
+                    <p x-text="article.author.bio"></p>
+                </div>
+            </div>
+
+            <!-- Article Pagination -->
+            <nav class="article-pagination">
+                <a href="article-page-1.html" class="pagination-btn" :class="article.currentPage <= 1 ? 'disabled' : ''"
+                    x-show="article.currentPage > 1">
+                    ← Previous Page
+                </a>
+
+                <div class="pagination-info">
+                    <span x-text="`Page ${article.currentPage} of ${article.totalPages}`"></span>
+                </div>
+
+                <a href="article-page-2.html" class="pagination-btn"
+                    :class="article.currentPage >= article.totalPages ? 'disabled' : ''"
+                    x-show="article.currentPage < article.totalPages">
+                    Continue Reading →
+                </a>
+            </nav>
+
+            <!-- Related Articles -->
+            <section class="related-articles">
+                <h3 class="related-title">Related Articles</h3>
+                <div class="related-grid">
+                    <template x-for="relatedArticle in related" :key="relatedArticle.id">
+                        <div class="related-card fade-in">
+                            <h5><a :href="relatedArticle.url" x-text="relatedArticle.title"></a></h5>
+                            <p x-text="relatedArticle.excerpt"></p>
+                        </div>
+                    </template>
+                </div>
+            </section>
+        </article>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>Quick Links</h3>
+                <a href="../index.html">Home</a>
+                <a href="#about">About</a>
+                <a href="#services">Services</a>
+                <a href="#contact">Contact</a>
+            </div>
+            <div class="footer-section">
+                <h3>Services</h3>
+                <a href="#">Web Development</a>
+                <a href="#">Design</a>
+                <a href="#">Consulting</a>
+                <a href="#">Support</a>
+            </div>
+            <div class="footer-section">
+                <h3>Contact Info</h3>
+                <a href="mailto:info@yoursite.com">info@yoursite.com</a>
+                <a href="tel:+1234567890">+1 (234) 567-890</a>
+                <a href="#">123 Web Street, Digital City</a>
+            </div>
+        </div>
+        <div class="footer-bottom" x-data="{currentYear: new Date().getFullYear()}">
+            <p>&copy; <span x-text="currentYear"></span> Relational Design. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+
+</html>

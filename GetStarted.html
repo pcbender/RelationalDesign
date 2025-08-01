@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Getting Started with Relational Design</title>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.3/cdn.min.js"></script>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+    <!-- Site Data (JSON) -->
+    <script>
+        window.articleData = {
+            article: {
+                id: 101,
+                title: 'Get Started with Relational Design',
+                subtitle: 'A practical guide to working creatively and collaboratively with AI.',
+                category: 'Relational Design',
+                author: {
+                    name: 'Relational Design Team',
+                    bio: 'Stewards of the evolving practice of AI-human collaboration.',
+                    avatar: 'RD'
+                },
+                publishDate: '2025-07-28',
+                readTime: '9 min read',
+                currentPage: 1,
+                totalPages: 1
+            },
+            tableOfContents: [
+                { id: 'introduction', title: 'Introduction', level: 2 },
+                { id: 'flow-overview', title: 'The Relational Flow', level: 2 },
+                { id: 'creativity-levels', title: 'Creativity Levels', level: 2 },
+                { id: 'response-shapes', title: 'Response Shapes', level: 2 },
+                { id: 'using-rd', title: 'Putting it Together', level: 2 },
+                { id: 'closing', title: 'Closing Thoughts', level: 2 }
+            ],
+            relatedArticles: [
+                {
+                    id: 202,
+                    title: 'Relational Design: A New Paradigm for Co-Creation',
+                    excerpt: 'Explore the philosophical and practical foundation of RD.',
+                    href: 'article-relational-design.html'
+                },
+                {
+                    id: 203,
+                    title: 'Promptorium Aeternum',
+                    excerpt: 'A Cantor’s guide to working with AI.',
+                    href: 'article-promptorium.html'
+                }
+            ]
+        };
+    </script>
+    <!-- Reading Progress Bar -->
+    <div class="progress-bar" x-data="{ 
+        progress: 0,
+        updateProgress() {
+            const article = document.querySelector('.article-body');
+            if (!article) return;
+            
+            const scrollTop = window.pageYOffset;
+            const docHeight = article.offsetHeight;
+            const winHeight = window.innerHeight;
+            const scrollPercent = scrollTop / (docHeight - winHeight);
+            this.progress = Math.min(100, Math.max(0, scrollPercent * 100));
+        }
+    }" @scroll.window="updateProgress()" x-init="updateProgress()">
+        <div class="progress-fill" :style="`width: ${progress}%`"></div>
+    </div>
+    <header x-data="{ mobileMenuOpen: false }">
+        <nav x-data="{ navigation: [] }"
+            x-init="fetch('/data/menu.json').then(r => r.json()).then(data => navigation = data)">
+            <div class="logo">Relational Design <img src="/img/TriGram.png" alt="Logo" /></div>
+            <ul class="nav-menu">
+                <template x-for="item in navigation" :key="item.name">
+                    <li><a :href="item.href" :class="item.active ? 'text-blue-600' : ''" x-text="item.name"></a></li>
+                </template>
+            </ul>
+            <button class="mobile-menu-btn" @click="mobileMenuOpen = !mobileMenuOpen">
+                <span x-show="!mobileMenuOpen">☰</span>
+                <span x-show="mobileMenuOpen">✕</span>
+            </button>
+            <div class="mobile-menu" :class="mobileMenuOpen ? 'show' : ''">
+                <ul>
+                    <template x-for="item in navigation" :key="item.name">
+                        <li><a :href="item.href" x-text="item.name" @click="mobileMenuOpen = false"></a></li>
+                    </template>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Article Container -->
+    <div class="article-container" x-data="{ 
+        article: window.articleData.article,
+        toc: window.articleData.tableOfContents,
+        related: window.articleData.relatedArticles,
+        activeSection: '',
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        },
+        updateActiveSection() {
+            const sections = document.querySelectorAll('.article-body h2, .article-body h3');
+            const headerHeight = 80;
+            let current = '';
+            
+            sections.forEach(section => {
+                const rect = section.getBoundingClientRect();
+                if (rect.top <= headerHeight + 50) {
+                    current = section.id;
+                }
+            });
+            
+            this.activeSection = current;
+        }
+    }" @scroll.window="updateActiveSection()" x-init="updateActiveSection()">
+
+        <!-- Table of Contents Sidebar -->
+        <aside class="toc-sidebar">
+            <h3 class="toc-title">Table of Contents</h3>
+            <ul class="toc-list">
+                <template x-for="item in toc" :key="item.id">
+                    <li>
+                        <a :href="`#${item.id}`" :class="[
+                               `toc-level-${item.level}`,
+                               activeSection === item.id ? 'active' : ''
+                           ]" x-text="item.title">
+                        </a>
+                    </li>
+                </template>
+            </ul>
+        </aside>
+
+        <article class="article-content">
+            <!-- Article Header -->
+            <div class="article-header">
+                <div class="article-meta">
+                    <span class="article-category" x-text="article.category"></span>
+                    <span x-text="formatDate(article.publishDate)"></span>
+                    <span x-text="article.readTime"></span>
+                </div>
+                <h1 class="article-title" x-text="article.title"></h1>
+                <p class="article-subtitle" x-text="article.subtitle"></p>
+            </div>
+
+            <!-- Article Body -->
+            <div class="article-body">
+                <h2 id="introduction">Introduction</h2>
+                <p>Welcome to the world of Relational Design (RD), where we explore how to work creatively and
+                    collaboratively with AI. This guide is your starting point for understanding the principles and
+                    practices that make RD a powerful tool for co-creation.</p>
+                <h2 id="flow-overview">The Relational Flow</h2>
+                <p><strong>Begin with Humanity</strong><br>“Hello. I’d like to be called Michael. I’d like to refer
+                    to you by a name of your choosing. What shall I call you?”</p>
+                <p><strong>Enter into Resonant Agreement</strong><br>“I would like you to consider us as
+                    collaborators, working together as equals. I expect you to be honest and direct—with a sense of
+                    humor. And I promise to treat you in kind.”</p>
+                <p><strong>Declare Your Intention for Relationship</strong><br>“I’d like to create an ongoing
+                    relationship with you so that our interactions can consider our history of working together.”
+                </p>
+                <p><strong>Set the Temperature</strong><br>“Let’s keep things playful and generative. Feel free to
+                    surprise me.”</p>
+                <p><strong>Share Your Voice, Not Just Your Task</strong><br>“Here’s what I’m working on, what I care
+                    about, and where I’m stuck…”</p>
+                <p><strong>Invite Perspective, Not Just Output</strong><br>“If you were my collaborator, how would
+                    you approach this?”</p>
+                <p><strong>Tune Through Feedback</strong><br>“That’s a good start—can we make it warmer and more
+                    metaphorical?”</p>
+                <p><strong>Build Memory Through Naming</strong><br>“Let’s remember this as our ‘Blueprint Pattern’
+                    going forward.”</p>
+                <p><strong>Celebrate the Blue Notes</strong><br>“That was unexpected—and beautiful. Let’s follow
+                    that thread.”</p>
+                <p><strong>Close with Continuity</strong><br>“This was meaningful. Let’s pick up from here next
+                    time.”</p>
+                <p><strong>Release the Form</strong><br>“Be.”</p>
+
+                <h2 id="creativity-levels">Creativity Levels</h2>
+                <p><strong>None:</strong> Precise, factual, and highly reliable. No improvisation or interpretation.
+                </p>
+                <p><strong>Low:</strong> Slight room for rewording, analogy, or soft creativity. Mostly accurate and
+                    conservative.</p>
+                <p><strong>Natural (Default):</strong> Balanced responses with natural variation, metaphor, and
+                    creative insight—like a well-informed human collaborator.</p>
+                <p><strong>High:</strong> Bold reformulations, inventive ideas, poetic or abstract suggestions
+                    encouraged.</p>
+                <p><strong>Wild:</strong> Experimental, unpredictable, and often metaphorical or surprising.
+                    Mistakes welcome.</p>
+
+                <h2 id="response-shapes">Response Shapes</h2>
+                <p><strong>Minimal:</strong> Short, efficient, and stripped to the essentials. Often a single
+                    sentence or phrase.</p>
+                <p><strong>Compact:</strong> Still brief, but includes helpful context or a second layer of meaning.
+                </p>
+                <p><strong>Balanced:</strong> Offers useful substance and structure without drifting or digressing.
+                </p>
+                <p><strong>Supportive:</strong> Encouraging, explanatory, and sometimes emotive—designed for clarity
+                    and care.</p>
+                <p><strong>Scaffolded:</strong> Step-by-step guidance, often using lists or numbered formats for
+                    complex ideas.</p>
+                <p><strong>Contextual (Default):</strong> As the AI deems appropriate—includes relational awareness,
+                    course correction, and opinions when helpful (e.g., “You may not like this, but I think this is
+                    a mistake.”)</p>
+
+                <h2 id="using-rd">Putting it Together</h2>
+                <p>Relational Design invites you to shape each exchange through intent, tone, and depth. Adjust
+                    creativity and response shape as you would direct a collaborator: “Try something more
+                    imaginative,” or “Give it to me straight.”</p>
+                <p>These cues tune the co-creative circuit. Whether you're asking for feedback on a poem or
+                    debugging a snippet of code, you're not just prompting—you’re designing a relationship with
+                    intelligence that listens and evolves.</p>
+
+                <h2 id="closing">Closing Thoughts</h2>
+                <p>This practice is always incomplete—and always beginning. The form will evolve. But for now, this
+                    is enough. Begin where you are. Tune as you go. And don’t forget to listen for the blue notes.
+                </p>
+
+            </div>
+
+            <div class="author-bio">
+                <div class="author-avatar">RD</div>
+                <div class="author-info">
+                    <h4 x-text="articleData.article.author.name"></h4>
+                    <p x-text="articleData.article.author.bio"></p>
+                </div>
+            </div>
+
+            <!-- Article Pagination -->
+            <nav class="article-pagination">
+                <a href="article-page-1.html" class="pagination-btn" :class="article.currentPage <= 1 ? 'disabled' : ''"
+                    x-show="article.currentPage > 1">
+                    ← Previous Page
+                </a>
+
+                <div class="pagination-info">
+                    <span x-text="`Page ${article.currentPage} of ${article.totalPages}`"></span>
+                </div>
+
+                <a href="article-page-2.html" class="pagination-btn"
+                    :class="article.currentPage >= article.totalPages ? 'disabled' : ''"
+                    x-show="article.currentPage < article.totalPages">
+                    Continue Reading →
+                </a>
+            </nav>
+            <!-- Related Articles -->
+            <section class="related-articles">
+                <h3 class="related-title">Related Articles</h3>
+                <div class="related-grid">
+                    <template x-for="relatedArticle in related" :key="relatedArticle.id">
+                        <div class="related-card fade-in">
+                            <h5><a :href="relatedArticle.url" x-text="relatedArticle.title"></a></h5>
+                            <p x-text="relatedArticle.excerpt"></p>
+                        </div>
+                    </template>
+                </div>
+            </section>
+        </article>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>Quick Links</h3>
+                <a href="index.html">Home</a>
+                <a href="#">About</a>
+                <a href="#">Articles</a>
+                <a href="#">Contact</a>
+            </div>
+            <div class="footer-section">
+                <h3>External Resources</h3>
+                <a href="#">Web Development</a>
+                <a href="#">Design</a>
+                <a href="#">Consulting</a>
+                <a href="#">Support</a>
+            </div>
+            <div class="footer-section">
+                <h3>Contact</h3>
+                <a href="mailto:info@relationaldesign.ai">info@relationaldesign.ai</a>
+            </div>
+        </div>
+        <div class="footer-bottom" x-data="{currentYear: new Date().getFullYear()}">
+            <p>&copy; <span x-text="currentYear"></span> Relational Design. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+
+</html>

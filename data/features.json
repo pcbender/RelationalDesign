@@ -1,0 +1,22 @@
+[
+    {
+        "icon": "🚀",
+        "title": "Fast Performance",
+        "description": "Lightning-fast loading times with optimized code and modern web technologies."
+    },
+    {
+        "icon": "📱",
+        "title": "Mobile First",
+        "description": "Fully responsive design that works perfectly on all devices and screen sizes."
+    },
+    {
+        "icon": "🔧",
+        "title": "Easy to Maintain",
+        "description": "Clean, organized code structure makes updates and maintenance simple."
+    },
+    {
+        "icon": "🎨",
+        "title": "Modern Design",
+        "description": "Beautiful, contemporary design with smooth animations and transitions."
+    }
+]
