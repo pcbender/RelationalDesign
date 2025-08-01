@@ -295,28 +295,16 @@
     </div>
 
     <!-- Footer -->
-    <footer>
+    <footer x-data="{ sections: [] }" x-init="fetch('data/footer.json').then(r => r.json()).then(data => sections = data)">
         <div class="footer-content">
-            <div class="footer-section">
-                <h3>Quick Links</h3>
-                <a href="../index.html">Home</a>
-                <a href="#about">About</a>
-                <a href="#services">Services</a>
-                <a href="#contact">Contact</a>
-            </div>
-            <div class="footer-section">
-                <h3>Services</h3>
-                <a href="#">Web Development</a>
-                <a href="#">Design</a>
-                <a href="#">Consulting</a>
-                <a href="#">Support</a>
-            </div>
-            <div class="footer-section">
-                <h3>Contact Info</h3>
-                <a href="mailto:info@yoursite.com">info@yoursite.com</a>
-                <a href="tel:+1234567890">+1 (234) 567-890</a>
-                <a href="#">123 Web Street, Digital City</a>
-            </div>
+            <template x-for="section in sections" :key="section.title">
+                <div class="footer-section">
+                    <h3 x-text="section.title"></h3>
+                    <template x-for="link in section.items" :key="link.name">
+                        <a :href="link.href" x-text="link.name"></a>
+                    </template>
+                </div>
+            </template>
         </div>
         <div class="footer-bottom" x-data="{currentYear: new Date().getFullYear()}">
             <p>&copy; <span x-text="currentYear"></span> Relational Design. All rights reserved.</p>

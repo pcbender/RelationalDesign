@@ -14,6 +14,7 @@ This repository contains a small static website demonstrating "Relational Design
   - `features.json` – features displayed on the homepage
   - `menu.json` – navigation items for the header
   - `recentUpdates.json` – recent news items
+  - `footer.json` – links displayed in the footer
 - `img/TriGram.png` – logo used on the site
 - `favicon.ico` – browser favicon
 - `LICENSE` – Apache 2.0 license
