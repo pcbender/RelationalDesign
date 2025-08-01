@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Article Title - Relational Design</title>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.3/cdn.min.js"></script>
-    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 
 <body>
@@ -83,8 +83,8 @@
         mobileMenuOpen: false
     }">
         <nav x-data="{ navigation: [] }"
-            x-init="fetch('/data/menu.json').then(r => r.json()).then(data => navigation = data)">
-            <div class="logo">Relational Design <img src="/img/TriGram.png" alt="Logo" /></div>
+            x-init="fetch('data/menu.json').then(r => r.json()).then(data => navigation = data)">
+            <div class="logo">Relational Design <img src="img/TriGram.png" alt="Logo" /></div>
 
             <!-- Desktop Menu -->
             <ul class="nav-menu">
