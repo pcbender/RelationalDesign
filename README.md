@@ -33,9 +33,9 @@ Any static hosting service such as GitHub Pages or Netlify can also serve these 
 
 ## Templates
 
-The `templates/` directory contains stripped-down HTML examples that can be copied when creating new pages:
+The `templates/` directory provides minimal starting points for new pages:
 
-- `home-template.html` – layout for the site homepage.
-- `article-template.html` – layout for content articles.
+- `home-template.html` – skeleton for a landing page.
+- `article-template.html` – skeleton for article pages.
 
-Copy the desired file, rename it, and replace the placeholder comments with your content. The templates already include the dynamic navigation and footer logic so only the page-specific sections need to be filled in.
+Copy the desired file, rename it, and fill in the sections marked with comments. The header and footer markup is included so only your unique content needs to be added.

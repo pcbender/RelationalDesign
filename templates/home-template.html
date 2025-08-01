@@ -8,10 +8,9 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <!-- Header with navigation fetched from data/menu.json -->
+    <!-- Navigation loaded from data/menu.json -->
     <header x-data="{ mobileMenuOpen: false }">
         <nav x-data="{ navigation: [] }" x-init="fetch('data/menu.json').then(r => r.json()).then(data => navigation = data)">
-            <!-- Replace brand text and logo if needed -->
             <div class="logo">Relational Design <img src="img/TriGram.png" alt="Logo" /></div>
             <ul class="nav-menu">
                 <template x-for="item in navigation" :key="item.name">
@@ -38,55 +37,14 @@
 
     <!-- Hero Section -->
     <section class="hero" id="hero">
-        <div class="hero-content">
-            <h1><!-- Main headline --></h1>
-            <h2><!-- Subheading --></h2>
-            <!-- Add introductory paragraphs here -->
-        </div>
+        <!-- Add hero headline, subheading and call-to-action -->
     </section>
 
-    <!-- Main Content -->
     <main>
-        <div class="article-body">
-            <!-- Add page specific sections here -->
-        </div>
-
-        <!-- Recent Updates Section (data/recentUpdates.json) -->
-        <section class="section" id="updates" x-data="{ updates: [], loading: false, formatDate(dateString) { return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); } }" x-init="fetch('data/recentUpdates.json').then(r => r.json()).then(data => updates = data)">
-            <h2>Recent Updates</h2>
-            <div class="updates-grid" :class="loading ? 'loading' : ''">
-                <template x-for="update in updates" :key="update.id">
-                    <article class="update-card fade-in">
-                        <div class="update-date" x-text="formatDate(update.date)"></div>
-                        <h3 class="update-title" x-text="update.title"></h3>
-                        <p class="update-excerpt" x-text="update.excerpt"></p>
-                    </article>
-                </template>
-            </div>
-        </section>
-
-        <!-- Features Section (data/features.json) -->
-        <section class="section" id="features" x-data="{ features: [] }" x-init="fetch('data/features.json').then(r => r.json()).then(data => features = data)">
-            <h2>Features</h2>
-            <div class="features-grid">
-                <template x-for="feature in features" :key="feature.title">
-                    <div class="feature-card fade-in">
-                        <div class="feature-icon" x-text="feature.icon"></div>
-                        <h3 class="feature-title" x-text="feature.title"></h3>
-                        <p class="feature-description" x-text="feature.description"></p>
-                    </div>
-                </template>
-            </div>
-        </section>
-
-        <!-- About Section -->
-        <section class="section" id="about">
-            <h2>About Us</h2>
-            <!-- Add info about the team or company -->
-        </section>
+        <!-- Add page-specific sections such as features or updates here -->
     </main>
 
-    <!-- Footer -->
+    <!-- Footer loaded from data/footer.json -->
     <footer x-data="{ sections: [] }" x-init="fetch('data/footer.json').then(r => r.json()).then(data => sections = data)">
         <div class="footer-content">
             <template x-for="section in sections" :key="section.title">
@@ -98,7 +56,7 @@
                 </div>
             </template>
         </div>
-        <div class="footer-bottom" x-data="{currentYear: new Date().getFullYear()}">
+        <div class="footer-bottom" x-data="{ currentYear: new Date().getFullYear() }">
             <p>&copy; <span x-text="currentYear"></span> Relational Design. All rights reserved.</p>
         </div>
     </footer>
