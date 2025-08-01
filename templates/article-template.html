@@ -43,7 +43,7 @@
     <!-- Header -->
     <header x-data="{ mobileMenuOpen: false }">
         <nav x-data="{ navigation: [] }" x-init="fetch('data/menu.json').then(r => r.json()).then(data => navigation = data)">
-            <div class="logo">Relational Design <img src="img/TriGram.png" alt="Logo" /></div>
+            <div class="logo"><a href="index.html"><img src="img/TriGram.png" alt="Relational Design" />Relational Design</a></div>
             <ul class="nav-menu">
                 <template x-for="item in navigation" :key="item.name">
                     <li>
