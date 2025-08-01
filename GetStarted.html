@@ -261,26 +261,16 @@
         </article>
     </div>
 
-    <footer>
+    <footer x-data="{ sections: [] }" x-init="fetch('data/footer.json').then(r => r.json()).then(data => sections = data)">
         <div class="footer-content">
-            <div class="footer-section">
-                <h3>Quick Links</h3>
-                <a href="index.html">Home</a>
-                <a href="#">About</a>
-                <a href="#">Articles</a>
-                <a href="#">Contact</a>
-            </div>
-            <div class="footer-section">
-                <h3>External Resources</h3>
-                <a href="#">Web Development</a>
-                <a href="#">Design</a>
-                <a href="#">Consulting</a>
-                <a href="#">Support</a>
-            </div>
-            <div class="footer-section">
-                <h3>Contact</h3>
-                <a href="mailto:info@relationaldesign.ai">info@relationaldesign.ai</a>
-            </div>
+            <template x-for="section in sections" :key="section.title">
+                <div class="footer-section">
+                    <h3 x-text="section.title"></h3>
+                    <template x-for="link in section.items" :key="link.name">
+                        <a :href="link.href" x-text="link.name"></a>
+                    </template>
+                </div>
+            </template>
         </div>
         <div class="footer-bottom" x-data="{currentYear: new Date().getFullYear()}">
             <p>&copy; <span x-text="currentYear"></span> Relational Design. All rights reserved.</p>

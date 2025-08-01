@@ -1,0 +1,28 @@
+[
+    {
+        "title": "Quick Links",
+        "items": [
+            {"name": "Home", "href": "index.html"},
+            {"name": "About", "href": "#about"},
+            {"name": "Services", "href": "#services"},
+            {"name": "Contact", "href": "#contact"}
+        ]
+    },
+    {
+        "title": "Services",
+        "items": [
+            {"name": "Web Development", "href": "#"},
+            {"name": "Design", "href": "#"},
+            {"name": "Consulting", "href": "#"},
+            {"name": "Support", "href": "#"}
+        ]
+    },
+    {
+        "title": "Contact Info",
+        "items": [
+            {"name": "info@yoursite.com", "href": "mailto:info@yoursite.com"},
+            {"name": "+1 (234) 567-890", "href": "tel:+1234567890"},
+            {"name": "123 Web Street, Digital City", "href": "#"}
+        ]
+    }
+]
