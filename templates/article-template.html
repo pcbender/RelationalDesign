@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><!-- Article Title --> - Relational Design</title>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.3/cdn.min.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Site Data (fill out the fields below) -->
+    <script>
+        window.articleData = {
+            article: {
+                id: 0,
+                title: '',          // Article title
+                subtitle: '',       // Short subtitle
+                category: '',
+                author: {
+                    name: '',
+                    bio: '',
+                    avatar: ''
+                },
+                publishDate: '',    // YYYY-MM-DD
+                readTime: '',       // e.g. '5 min read'
+                currentPage: 1,
+                totalPages: 1
+            },
+            tableOfContents: [
+                // { id: 'intro', title: 'Introduction', level: 2 }
+            ],
+            relatedArticles: [
+                // { id: 2, title: 'Another Article', excerpt: 'Summary', url: 'another-article.html' }
+            ]
+        };
+    </script>
+
+    <!-- Reading Progress Bar -->
+    <div class="progress-bar" x-data="{ progress: 0, updateProgress() { const article = document.querySelector('.article-body'); if (!article) return; const scrollTop = window.pageYOffset; const docHeight = article.offsetHeight; const winHeight = window.innerHeight; const scrollPercent = scrollTop / (docHeight - winHeight); this.progress = Math.min(100, Math.max(0, scrollPercent * 100)); } }" @scroll.window="updateProgress()" x-init="updateProgress()">
+        <div class="progress-fill" :style="`width: ${progress}%`"></div>
+    </div>
+
+    <!-- Header -->
+    <header x-data="{ mobileMenuOpen: false }">
+        <nav x-data="{ navigation: [] }" x-init="fetch('data/menu.json').then(r => r.json()).then(data => navigation = data)">
+            <div class="logo">Relational Design <img src="img/TriGram.png" alt="Logo" /></div>
+            <ul class="nav-menu">
+                <template x-for="item in navigation" :key="item.name">
+                    <li>
+                        <a :href="item.href" :class="item.active ? 'text-blue-600' : ''" x-text="item.name"></a>
+                    </li>
+                </template>
+            </ul>
+            <button class="mobile-menu-btn" @click="mobileMenuOpen = !mobileMenuOpen">
+                <span x-show="!mobileMenuOpen">☰</span>
+                <span x-show="mobileMenuOpen">✕</span>
+            </button>
+            <div class="mobile-menu" :class="mobileMenuOpen ? 'show' : ''">
+                <ul>
+                    <template x-for="item in navigation" :key="item.name">
+                        <li>
+                            <a :href="item.href" x-text="item.name" @click="mobileMenuOpen = false"></a>
+                        </li>
+                    </template>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Article Container -->
+    <div class="article-container" x-data="{ article: window.articleData.article, toc: window.articleData.tableOfContents, related: window.articleData.relatedArticles, activeSection: '', formatDate(dateString) { return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); }, updateActiveSection() { const sections = document.querySelectorAll('.article-body h2, .article-body h3'); const headerHeight = 80; let current = ''; sections.forEach(section => { const rect = section.getBoundingClientRect(); if (rect.top <= headerHeight + 50) { current = section.id; } }); this.activeSection = current; } }" @scroll.window="updateActiveSection()" x-init="updateActiveSection()">
+        <aside class="toc-sidebar">
+            <h3 class="toc-title">Table of Contents</h3>
+            <ul class="toc-list">
+                <template x-for="item in toc" :key="item.id">
+                    <li>
+                        <a :href="`#${item.id}`" :class="[ `toc-level-${item.level}`, activeSection === item.id ? 'active' : '' ]" x-text="item.title"></a>
+                    </li>
+                </template>
+            </ul>
+        </aside>
+
+        <!-- Article Content -->
+        <article class="article-content">
+            <div class="article-header">
+                <div class="article-meta">
+                    <span class="article-category" x-text="article.category"></span>
+                    <span x-text="formatDate(article.publishDate)"></span>
+                    <span x-text="article.readTime"></span>
+                </div>
+                <h1 class="article-title" x-text="article.title"></h1>
+                <p class="article-subtitle" x-text="article.subtitle"></p>
+            </div>
+
+            <!-- Article Body -->
+            <div class="article-body">
+                <!-- Write your article content here. Use IDs on headings to link them to the table of contents. -->
+            </div>
+
+            <!-- Author Bio -->
+            <div class="author-bio">
+                <div class="author-avatar" x-text="article.author.avatar"></div>
+                <div class="author-info">
+                    <h4 x-text="article.author.name"></h4>
+                    <p x-text="article.author.bio"></p>
+                </div>
+            </div>
+
+            <!-- Article Pagination -->
+            <nav class="article-pagination">
+                <a href="#" class="pagination-btn" :class="article.currentPage <= 1 ? 'disabled' : ''" x-show="article.currentPage > 1">← Previous Page</a>
+                <div class="pagination-info">
+                    <span x-text="`Page ${article.currentPage} of ${article.totalPages}`"></span>
+                </div>
+                <a href="#" class="pagination-btn" :class="article.currentPage >= article.totalPages ? 'disabled' : ''" x-show="article.currentPage < article.totalPages">Continue Reading →</a>
+            </nav>
+
+            <!-- Related Articles -->
+            <section class="related-articles">
+                <h3 class="related-title">Related Articles</h3>
+                <div class="related-grid">
+                    <template x-for="relatedArticle in related" :key="relatedArticle.id">
+                        <div class="related-card fade-in">
+                            <h5><a :href="relatedArticle.url" x-text="relatedArticle.title"></a></h5>
+                            <p x-text="relatedArticle.excerpt"></p>
+                        </div>
+                    </template>
+                </div>
+            </section>
+        </article>
+    </div>
+
+    <!-- Footer -->
+    <footer x-data="{ sections: [] }" x-init="fetch('data/footer.json').then(r => r.json()).then(data => sections = data)">
+        <div class="footer-content">
+            <template x-for="section in sections" :key="section.title">
+                <div class="footer-section">
+                    <h3 x-text="section.title"></h3>
+                    <template x-for="link in section.items" :key="link.name">
+                        <a :href="link.href" x-text="link.name"></a>
+                    </template>
+                </div>
+            </template>
+        </div>
+        <div class="footer-bottom" x-data="{currentYear: new Date().getFullYear()}">
+            <p>&copy; <span x-text="currentYear"></span> Relational Design. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>
