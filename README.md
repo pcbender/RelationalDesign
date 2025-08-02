@@ -39,3 +39,19 @@ The `templates/` directory contains stripped-down HTML examples that can be copi
 - `article-template.html` – layout for content articles.
 
 Copy the desired file, rename it, and replace the placeholder comments with your content. The templates already include the dynamic navigation and footer logic so only the page-specific sections need to be filled in.
+
+## Notes
+
+- How to set up multiple identies for GitHub
+
+In an admin console in the project root:
+
+git config --global credential.helper manager-core
+
+In each repo, key credentials by path so accounts don’t collide:
+
+git config credential.useHttpPath true
+
+Then run:
+
+git push
