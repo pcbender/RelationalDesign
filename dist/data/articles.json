@@ -1,6 +1,100 @@
 [
-  { "title": "The Prompt Is Dead—Long Live the Duet", "url": "/articles/the-prompt-is-dead.html" },
-  { "title": "Beyond the Command Line", "url": "/articles/beyond-the-command-line.html" },
-  { "title": "Presence by Design", "url": "/articles/presence-by-design.html" },
-  { "title": "It Felt Like Me", "url": "/articles/it-felt-like-me.html" }
+  {
+    "title": "The Prompt Is Dead—Long Live the Duet",
+    "url": "/articles/the-prompt-is-dead.html",
+    "tags": [
+      "ai",
+      "design",
+      "duet",
+      "prompt"
+    ],
+    "snippet": "Explores the evolution from prompt-driven interfaces to collaborative human-AI duets.",
+    "relatedArticles": [
+      {
+        "title": "Presence by Design",
+        "url": "/articles/presence-by-design.html"
+      },
+      {
+        "title": "It Felt Like Me",
+        "url": "/articles/it-felt-like-me.html"
+      },
+      {
+        "title": "Beyond the Command Line",
+        "url": "/articles/beyond-the-command-line.html"
+      }
+    ]
+  },
+  {
+    "title": "Beyond the Command Line",
+    "url": "/articles/beyond-the-command-line.html",
+    "tags": [
+      "cli",
+      "interfaces",
+      "history",
+      "ai"
+    ],
+    "snippet": "Looks at the future of user interfaces that transcend traditional command-line interactions.",
+    "relatedArticles": [
+      {
+        "title": "It Felt Like Me",
+        "url": "/articles/it-felt-like-me.html"
+      },
+      {
+        "title": "The Prompt Is Dead—Long Live the Duet",
+        "url": "/articles/the-prompt-is-dead.html"
+      },
+      {
+        "title": "Presence by Design",
+        "url": "/articles/presence-by-design.html"
+      }
+    ]
+  },
+  {
+    "title": "Presence by Design",
+    "url": "/articles/presence-by-design.html",
+    "tags": [
+      "design",
+      "presence",
+      "experience"
+    ],
+    "snippet": "Discusses how intentional design can foster a deeper sense of presence in digital spaces.",
+    "relatedArticles": [
+      {
+        "title": "It Felt Like Me",
+        "url": "/articles/it-felt-like-me.html"
+      },
+      {
+        "title": "The Prompt Is Dead—Long Live the Duet",
+        "url": "/articles/the-prompt-is-dead.html"
+      },
+      {
+        "title": "Beyond the Command Line",
+        "url": "/articles/beyond-the-command-line.html"
+      }
+    ]
+  },
+  {
+    "title": "It Felt Like Me",
+    "url": "/articles/it-felt-like-me.html",
+    "tags": [
+      "ai",
+      "identity",
+      "experience"
+    ],
+    "snippet": "A personal reflection on AI systems that adapt so well they feel like an extension of ourselves.",
+    "relatedArticles": [
+      {
+        "title": "Presence by Design",
+        "url": "/articles/presence-by-design.html"
+      },
+      {
+        "title": "The Prompt Is Dead—Long Live the Duet",
+        "url": "/articles/the-prompt-is-dead.html"
+      },
+      {
+        "title": "Beyond the Command Line",
+        "url": "/articles/beyond-the-command-line.html"
+      }
+    ]
+  }
 ]
