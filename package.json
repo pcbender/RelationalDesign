@@ -1,0 +1,8 @@
+{
+  "name": "relationaldesign",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:site": "node scripts/build.js"
+  }
+}
