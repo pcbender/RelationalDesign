@@ -17,11 +17,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y sshpass
 
-      - name: Trust host key (ssh-keyscan)
+      - name: Prepare ~/.ssh and trust host key
         shell: bash
         run: |
           : "${SSH_PORT:=22}"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
           ssh-keyscan -p "$SSH_PORT" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
       - name: Ensure remote path exists
         shell: bash
