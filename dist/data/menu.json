@@ -1,8 +1,6 @@
 [
     { "name": "Home", "href": "index.html", "active": true },
-    { "name": "About", "href": "about.html", "active": false },
-    { "name": "Articles", "href": "articles.html", "active": false },
+    { "name": "Get Started", "href": "GetStarted.html", "active": false },
     { "name": "Manifesto", "href": "RelationalDesignManifesto.html", "active": false },
-    { "name": "Blog", "href": "blog.html", "active": false },
-    { "name": "Contact", "href": "contact.html", "active": false }
+    { "name": "About", "href": "index.html#about", "active": false }
 ]

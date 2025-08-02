@@ -3,18 +3,9 @@
         "title": "Quick Links",
         "items": [
             {"name": "Home", "href": "index.html"},
-            {"name": "About", "href": "#about"},
-            {"name": "Services", "href": "#services"},
-            {"name": "Contact", "href": "#contact"}
-        ]
-    },
-    {
-        "title": "Services",
-        "items": [
-            {"name": "Web Development", "href": "#"},
-            {"name": "Design", "href": "#"},
-            {"name": "Consulting", "href": "#"},
-            {"name": "Support", "href": "#"}
+            {"name": "Get Started", "href": "GetStarted.html"},
+            {"name": "Manifesto", "href": "RelationalDesignManifesto.html"},
+            {"name": "About", "href": "index.html#about"}
         ]
     },
     {
