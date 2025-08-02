@@ -17,7 +17,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           local-dir: ./dist
-          server-dir: /var/www/site
+          server-dir: /home/pcbender/relationaldesign.ai
           exclude: |
             .git*
             .git/** 
