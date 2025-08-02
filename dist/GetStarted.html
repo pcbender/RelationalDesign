@@ -252,7 +252,7 @@
                 <div class="related-grid">
                     <template x-for="relatedArticle in related" :key="relatedArticle.id">
                         <div class="related-card fade-in">
-                            <h5><a :href="relatedArticle.url" x-text="relatedArticle.title"></a></h5>
+                            <h5><a :href="relatedArticle.href" x-text="relatedArticle.title"></a></h5>
                             <p x-text="relatedArticle.excerpt"></p>
                         </div>
                     </template>
