@@ -1,0 +1,64 @@
+name: AI Deep Release Review
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'          # tag releases like v1.2.3
+  release:
+    types: [created, published]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  deep-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - run: npm ci
+
+      # Build your static site if needed (adjust command)
+      - name: Build site
+        run: |
+          if [ -f package.json ] && jq -e '.scripts.build' package.json > /dev/null; then
+            npm run build
+          else
+            echo "No build step; using / for crawls"
+          fi
+
+      # Fast non-AI checks that the AI will read & explain
+      - name: Validate JSON
+        run: npx ajv-cli validate -s schema/**/*.json -d data/**/*.json || true
+
+      - name: Link check
+        run: npx linkinator . --recurse --skip 'mailto:|tel:' --format json --silent > link-report.json || true
+
+      - name: HTML lint
+        run: npx html-validate "**/*.html" -f json > htmlvalidate.json || true
+
+      - name: Lighthouse (optional, if you can serve dist/)
+        run: |
+          npx http-server ./dist -p 4173 & sleep 2
+          npx @lhci/cli autorun --collect.url=http://127.0.0.1:4173 || true
+
+      - name: AI Deep Review
+        run: node scripts/ai-review.js --mode=deep --siteDir=dist
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-deep-review-artifacts
+          path: |
+            link-report.json
+            htmlvalidate.json
+            .lighthouseci/*
+          if-no-files-found: ignore

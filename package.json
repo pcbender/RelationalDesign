@@ -2,7 +2,27 @@
   "name": "relationaldesign",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "build:site": "node scripts/build.js"
+    "build:site": "node scripts/build.js",
+    "ai-review": "node scripts/ai-review.js"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.0",
+    "diff": "^7.0.0",
+    "openai": "^4.57.0",
+    "simple-git": "^3.24.0"
+  },
+  "devDependencies": {
+    "@lhci/cli": "^0.13.0",
+    "ajv": "^8.17.1",
+    "ajv-cli": "^5.0.0",
+    "html-validate": "^9.0.0",
+    "http-server": "^14.1.1",
+    "linkinator": "^6.0.0"
   }
 }
