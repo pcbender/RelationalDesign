@@ -1,0 +1,26 @@
+name: Build site
+
+on:
+  push:
+    paths:
+      - 'dist/**/*.html'
+      - 'dist/**/*.md'
+      - 'content/**/*.html'
+      - 'content/**/*.md'
+  pull_request:
+    paths:
+      - 'dist/**/*.html'
+      - 'dist/**/*.md'
+      - 'content/**/*.html'
+      - 'content/**/*.md'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run build:site

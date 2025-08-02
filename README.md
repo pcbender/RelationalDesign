@@ -37,6 +37,10 @@ The `templates/` directory contains stripped-down HTML examples that can be copi
 
 Copy the desired file, rename it and replace the placeholder comments with your content. The templates already include the dynamic navigation and footer logic so only the page-specific sections need to be filled in.
 
+## Automated builds
+
+Run `npm run build:site` to regenerate navigation lists and related links after adding or editing articles. A GitHub Actions workflow automatically runs this command whenever Markdown or HTML files change in `content/` or `dist/`, keeping generated lists up to date.
+
 ## Notes
 
 - How to set up multiple identities for GitHub
