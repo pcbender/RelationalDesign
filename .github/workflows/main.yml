@@ -1,44 +1,45 @@
-name: Deploy static site via FTPS
+name: Deploy via rsync (password)
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      SSH_PORT: ${{ secrets.SSH_PORT }} # optional; default 22
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy via FTPS (exclude repo files)
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          local-dir: ./dist/
-          server-dir: /home/pcbender/relationaldesign.ai/
-          exclude: |
-            .git*
-            .git/** 
-            .github/**
-            .editorconfig
-            .vscode/**
-            .idea/**
-            README*
-            LICENSE*
-            CHANGELOG*
-            CONTRIBUTING*
-            CODE_OF_CONDUCT*
-            docs/**
-            tests/**
-            scripts/**
-            Makefile
-            Dockerfile
-            docker-compose.yml
-            package.json
-            package-lock.json
-            pnpm-lock.yaml
-            yarn.lock
-            node_modules/**
-            **/*.map
+      - name: Install sshpass
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+
+      - name: Trust host key (ssh-keyscan)
+        shell: bash
+        run: |
+          : "${SSH_PORT:=22}"
+          ssh-keyscan -p "$SSH_PORT" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Ensure remote path exists
+        shell: bash
+        run: |
+          : "${SSH_PORT:=22}"
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" \
+          ssh -p "$SSH_PORT" \
+              -o StrictHostKeyChecking=yes \
+              -o PreferredAuthentications=password \
+              -o PubkeyAuthentication=no \
+              "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+              "mkdir -p '${{ vars.REMOTE_PATH }}'"
+
+      - name: Deploy dist/ via rsync (mirror)
+        shell: bash
+        run: |
+          : "${SSH_PORT:=22}"
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" \
+          rsync -az --delete --checksum --human-readable \
+            -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=yes -o PreferredAuthentications=password -o PubkeyAuthentication=no" \
+            dist/ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ vars.REMOTE_PATH }}/"
