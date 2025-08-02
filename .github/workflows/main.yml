@@ -1,0 +1,44 @@
+name: Deploy static site via FTPS
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via FTPS (exclude repo files)
+        uses: SamKirkland/FTP-Deploy-Action@v4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: ./dist
+          server-dir: /var/www/site
+          exclude: |
+            .git*
+            .git/** 
+            .github/**
+            .editorconfig
+            .vscode/**
+            .idea/**
+            README*
+            LICENSE*
+            CHANGELOG*
+            CONTRIBUTING*
+            CODE_OF_CONDUCT*
+            docs/**
+            tests/**
+            scripts/**
+            Makefile
+            Dockerfile
+            docker-compose.yml
+            package.json
+            package-lock.json
+            pnpm-lock.yaml
+            yarn.lock
+            node_modules/**
+            **/*.map
