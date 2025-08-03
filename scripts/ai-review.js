@@ -209,6 +209,7 @@ ${lhSummary.slice(0, 15000)}
           title: `${title} · ${new Date().toISOString()}`,
           body: reviewBody
         });
+        throw new Error(`Failed to create PR: ${err.message || err}`);
       }
     } else {
       await octokit.rest.issues.create({
