@@ -5,6 +5,9 @@
 .vscode/
 .idea/
 
+# Node dependencies
+node_modules/
+
 # OS-specific temporary files
 Thumbs.db
 ehthumbs.db
