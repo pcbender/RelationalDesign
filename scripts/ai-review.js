@@ -181,12 +181,12 @@ ${lhSummary.slice(0, 15000)}
           ]
         });
         const patch = patchResp.choices[0].message.content?.trim();
-        const branch = `ai-fix-${Date.now()}`;
-        const defaultBranch = context.payload.repository?.default_branch || 'main';
-        const git = simpleGit();
-        await git.checkout(defaultBranch);
-        await git.checkoutLocalBranch(branch);
         if (patch?.startsWith('diff')) {
+          const branch = `ai-fix-${Date.now()}`;
+          const defaultBranch = context.payload.repository?.default_branch || 'main';
+          const git = simpleGit();
+          await git.checkout(defaultBranch);
+          await git.checkoutLocalBranch(branch);
           await git.applyPatch(patch);
           await git.add('.');
           await git.commit(title);
@@ -200,7 +200,13 @@ ${lhSummary.slice(0, 15000)}
             body: reviewBody
           });
         } else {
-          throw new Error('No patch returned');
+          await octokit.rest.issues.create({
+            owner,
+            repo,
+            title: `${title} · ${new Date().toISOString()}`,
+            body: reviewBody
+          });
+          info('No patch returned; created issue instead.');
         }
       } catch (err) {
         await octokit.rest.issues.create({
