@@ -41,6 +41,16 @@ Copy the desired file, rename it and replace the placeholder comments with your 
 
 Run `npm run build:site` to regenerate navigation lists and related links after adding or editing articles. A GitHub Actions workflow automatically runs this command whenever Markdown or HTML files change in `content/` or `dist/`, keeping generated lists up to date.
 
+## AI review and automated PRs
+
+The repository includes an experimental script that can review the site and open pull requests with suggested fixes. Provide `OPENAI_API_KEY` and a token in `GITHUB_TOKEN`, then run:
+
+```bash
+npm run ai-review -- --mode=deep --create-pr
+```
+
+The script analyses the project, generates a patch, commits it to a new branch and opens a pull request with the review summary.
+
 ## Notes
 
 - How to set up multiple identities for GitHub
@@ -62,5 +72,3 @@ Then run:
 ```bash
 git push
 ```
-
-ssh

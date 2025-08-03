@@ -11,6 +11,7 @@ const SITE_DIR = (arg => {
   const f = process.argv.find(a => a.startsWith('--siteDir='));
   return f ? f.split('=')[1] : '.';
 })();
+const CREATE_PR = process.argv.includes('--create-pr');
 
 const SYSTEM_PROMPT = `
 You are an expert reviewer for static sites built with HTML, JSON data files, and Alpine.js.
@@ -154,19 +155,69 @@ ${lhSummary.slice(0, 15000)}
     ]
   });
 
-  const body = resp.choices[0].message.content?.trim() || '(no output)';
+  const reviewBody = resp.choices[0].message.content?.trim() || '(no output)';
   const title = MODE === 'light' ? '💡 AI Light Review' : '🛠️ AI Deep Release Review';
 
   if (context.payload.pull_request) {
     await octokit.rest.issues.createComment({
-      owner, repo, issue_number: context.payload.pull_request.number, body: `### ${title}\n${body}`
+      owner,
+      repo,
+      issue_number: context.payload.pull_request.number,
+      body: `### ${title}\n${reviewBody}`
     });
   } else {
-    // No PR context (tag/release): open an issue to track the report
-    await octokit.rest.issues.create({
-      owner, repo, title: `${title} · ${new Date().toISOString()}`,
-      body
-    });
+    // No PR context (tag/release)
+    if (CREATE_PR) {
+      try {
+        const patchResp = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          temperature: 0,
+          messages: [
+            { role: 'system', content: 'You are an AI developer. Return only a unified diff patch.' },
+            {
+              role: 'user',
+              content: `Generate a patch that addresses these issues:\n\n${reviewBody}`
+            }
+          ]
+        });
+        const patch = patchResp.choices[0].message.content?.trim();
+        const branch = `ai-fix-${Date.now()}`;
+        const defaultBranch = context.payload.repository?.default_branch || 'main';
+        const git = simpleGit();
+        await git.checkout(defaultBranch);
+        await git.checkoutLocalBranch(branch);
+        if (patch?.startsWith('diff')) {
+          await git.applyPatch(patch);
+          await git.add('.');
+          await git.commit(title);
+          await git.push('origin', branch);
+          await octokit.rest.pulls.create({
+            owner,
+            repo,
+            head: branch,
+            base: defaultBranch,
+            title,
+            body: reviewBody
+          });
+        } else {
+          throw new Error('No patch returned');
+        }
+      } catch (err) {
+        await octokit.rest.issues.create({
+          owner,
+          repo,
+          title: `${title} · ${new Date().toISOString()}`,
+          body: reviewBody
+        });
+      }
+    } else {
+      await octokit.rest.issues.create({
+        owner,
+        repo,
+        title: `${title} · ${new Date().toISOString()}`,
+        body: reviewBody
+      });
+    }
   }
 
   info(`${MODE} review posted.`);
