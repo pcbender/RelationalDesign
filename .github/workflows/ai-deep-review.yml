@@ -11,6 +11,7 @@ on:
 permissions:
   pull-requests: write
   contents: read
+  issues: write
 
 jobs:
   deep-review:
@@ -51,7 +52,7 @@ jobs:
         run: node scripts/ai-review.js --mode=deep --siteDir=dist
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.AI_REVIEW_PAT }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
