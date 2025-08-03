@@ -49,7 +49,7 @@ jobs:
           npx @lhci/cli autorun --collect.url=http://127.0.0.1:4173 || true
 
       - name: AI Deep Review
-        run: node scripts/ai-review.js --mode=deep --siteDir=dist
+        run: node scripts/ai-review.js --mode=deep --siteDir=dist --create-pr
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.AI_REVIEW_PAT }}
