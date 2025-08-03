@@ -9,6 +9,7 @@ on:
 permissions:
   pull-requests: write
   contents: read
+  issues: write
 
 jobs:
   light-review:
@@ -22,4 +23,4 @@ jobs:
         run: node scripts/ai-review.js --mode=light
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.AI_REVIEW_PAT }}
