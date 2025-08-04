@@ -201,8 +201,12 @@ ${lhSummary.slice(0, 15000)}
         const patchResp = await openai.chat.completions.create({
           model: MODE === 'light' ? 'gpt-4o' : 'gpt-4',
           temperature: 0,
+          max_tokens: 2048,
           messages: patchPrompt
         });
+
+        console.log(JSON.stringify(patchResp, null, 2));
+        
         const patch = patchResp.choices[0].message.content?.trim();
         if (patch?.startsWith('diff')) {
           const branch = `ai-fix-${Date.now()}`;
