@@ -45,7 +45,7 @@ async function gatherPrDiff(octokit, owner, repo, prNumber, maxChars = 45000) {
   const { data: files } = await octokit.rest.pulls.listFiles({ owner, repo, pull_number: prNumber });
   let bundle = '';
   for (const f of files) {
-    if (!['added','modified','renamed'].includes(f.status)) continue;
+    if (!['added', 'modified', 'renamed'].includes(f.status)) continue;
     if (!f.patch) continue;
     if (!/\.(html?|json|md|js|css)$/i.test(f.filename)) continue; // focus
     const header = `\n\n--- FILE: ${f.filename} (${f.status}) ---\n`;
@@ -66,7 +66,10 @@ function collectContextFiles(root = '.') {
   ].concat(
     glob('**/*.html', 8),
     glob('data/**/*.json', 8),
-    glob('src/**/*.js', 8)
+    glob('src/**/*.js', 8),
+    glob('src/**/*.css', 8),
+    glob('.github/workflows/**/*.yml', 5),
+    glob('.github/workflows/**/*.yaml', 5)
   ).slice(0, 30); // keep it small
   const parts = [];
   for (const rel of candidates) {
@@ -84,7 +87,7 @@ function glob(pattern, limit = 50) {
       const p = path.join(dir, e.name);
       if (e.isDirectory()) {
         if (p.includes('node_modules') || p.startsWith('.git')) continue;
-        try { walk(p); } catch {}
+        try { walk(p); } catch { }
       } else {
         out.push(p);
       }
@@ -147,7 +150,7 @@ ${lhSummary.slice(0, 15000)}
   }
 
   const resp = await openai.chat.completions.create({
-    model: MODE === 'light' ? 'gpt-4o-mini' : 'gpt-4o',
+    model: MODE === 'light' ? 'gpt-4o' : 'gpt-4',
     temperature: 0.1,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
@@ -169,16 +172,36 @@ ${lhSummary.slice(0, 15000)}
     // No PR context (tag/release)
     if (CREATE_PR) {
       try {
+
+        const contextFiles = collectContextFiles(SITE_DIR);
+
+        const patchPrompt = [
+          {
+            role: 'system',
+            content: [
+              'You are an AI developer.',
+              'Generate a unified diff patch (no markdown fences) that applies the fixes below',
+              'to the exact files provided.'
+            ].join(' ')
+          },
+          {
+            role: 'user',
+            content: [
+              'PROJECT FILES:',
+              contextFiles,
+              '',
+              'SUGGESTED FIXES:',
+              reviewBody,
+              '',
+              'Please return only the diff, starting with `diff --git`.'
+            ].join('\n')
+          }
+        ];
+
         const patchResp = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
+          model: MODE === 'light' ? 'gpt-4o' : 'gpt-4',
           temperature: 0,
-          messages: [
-            { role: 'system', content: 'You are an AI developer. Return only a unified diff patch.' },
-            {
-              role: 'user',
-              content: `Generate a patch that addresses these issues:\n\n${reviewBody}`
-            }
-          ]
+          messages: patchPrompt
         });
         const patch = patchResp.choices[0].message.content?.trim();
         if (patch?.startsWith('diff')) {
