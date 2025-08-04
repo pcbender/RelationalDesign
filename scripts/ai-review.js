@@ -56,80 +56,62 @@ async function gatherPrDiff(octokit, owner, repo, prNumber, maxChars = 45000) {
   return bundle;
 }
 
-function collectContextFiles(root = '.') {
-  const candidates = [
-    'index.html',
-    'robots.txt',
-    'sitemap.xml',
-    'package.json',
-    'README.md'
-  ].concat(
-    glob('**/*.html', 8, root),
-    glob('data/**/*.json', 8, root),
-    glob('src/**/*.js', 8, root),
-    glob('src/**/*.css', 8, root),
-    glob('.github/workflows/**/*.yml', 5, root),
-    glob('.github/workflows/**/*.yaml', 5, root)
-  ).slice(0, 30);
-  
-  const parts = [];
-  for (const rel of candidates) {
-    // Don't use path.join here since rel might already be a full path
-    const fullPath = rel.startsWith(root) ? rel : path.join(root, rel);
-    console.log(`Reading context file: ${fullPath}`);
-    const body = readIfExists(fullPath);
-    if (body) {
-      parts.push(`\n--- CONTEXT FILE: ${rel} ---\n${body.slice(0, 4000)}`);
-    } else {
-      console.warn(`Skipping empty context file: ${fullPath}`);
-    }
-  }
-  return parts.join('\n');
-}
+function collectContextFiles(root = '.', maxFiles = 30) {
+  const extensionsToInclude = ['.html', '.json', '.js', '.css', '.yml', '.yaml', '.md', '.txt', '.xml'];
+  const foldersToIgnore = ['node_modules', '.git', 'dist', 'build'];
+  const specificFiles = ['package.json', 'README.md', 'robots.txt', 'sitemap.xml', 'index.html'];
 
-function glob(pattern, limit = 50, root = '.') {
-  const out = [];
-  let totalFiles = 0;
-  
-  (function walk(dir) {
+  const files = [];
+
+  function walkDir(dir) {
     try {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
-      for (const e of entries) {
-        const p = path.join(dir, e.name);
-        if (e.isDirectory()) {
-          if (p.includes('node_modules') || p.includes('.git')) continue;
-          walk(p);
+
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        const relativePath = path.relative(root, fullPath);
+
+        if (entry.isDirectory()) {
+          // Skip ignored folders
+          if (!foldersToIgnore.some(folder => fullPath.includes(folder))) {
+            walkDir(fullPath);
+          }
         } else {
-          totalFiles++;
-          const relativePath = path.relative(root, p);
-          out.push(relativePath);
+          // Include specific files or files with allowed extensions
+          const fileName = path.basename(fullPath);
+          const ext = path.extname(fullPath).toLowerCase();
+
+          if (specificFiles.includes(fileName) || extensionsToInclude.includes(ext)) {
+            files.push(relativePath);
+          }
         }
+
+        // Stop early if we have enough files
+        if (files.length >= maxFiles) return;
       }
     } catch (err) {
       console.warn(`Error reading directory ${dir}:`, err.message);
     }
-  })(root);
-  
-  console.log(`Total files found: ${totalFiles}, Pattern: ${pattern}`);
-  
-  const rx = new RegExp('^' + pattern
-    .replace(/\*\*/g, '.*')
-    .replace(/\*/g, '[^/]*')
-    .replace(/\./g, '\\.')
-    .replace(/\//g, '\\/') + '$');
-  
-  const filtered = out.filter(p => {
-    const normalizedPath = p.replace(/\\/g, '/');
-    const matches = rx.test(normalizedPath);
-    if (matches && filtered.length < 5) {
-      console.log(`  Matched: ${normalizedPath}`);
+  }
+
+  walkDir(root);
+
+  // Read and format the files
+  const parts = [];
+  for (const file of files.slice(0, maxFiles)) {
+    const fullPath = path.join(root, file);
+    try {
+      const content = fs.readFileSync(fullPath, 'utf8');
+      if (content) {
+        const displayPath = file.replace(/\\/g, '/'); // Normalize for display
+        parts.push(`\n--- CONTEXT FILE: ${displayPath} ---\n${content.slice(0, 4000)}`);
+      }
+    } catch (err) {
+      console.warn(`Error reading file ${fullPath}:`, err.message);
     }
-    return matches;
-  });
-  
-  console.log(`Files matching pattern: ${filtered.length}`);
-  
-  return filtered.slice(0, limit);
+  }
+
+  return parts.join('\n');
 }
 
 async function main() {
