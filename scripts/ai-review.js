@@ -199,6 +199,8 @@ ${lhSummary.slice(0, 15000)}
           }
         ];
 
+        console.log(JSON.stringify(patchPrompt, null, 2));
+
         const patchResp = await openai.chat.completions.create({
           model: MODE === 'light' ? 'gpt-4o' : 'gpt-4',
           temperature: 0.1,
