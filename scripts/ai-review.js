@@ -62,6 +62,8 @@ function collectContextFiles(root = '.', maxFiles = 30) {
   const specificFiles = ['package.json', 'README.md', 'robots.txt', 'sitemap.xml', 'index.html'];
   const reviewDataFile = path.join(root, '.ai-review-history.json');
 
+  console.log(`Collecting context files from ${root}`);
+
   // Load review history
   let reviewHistory = {};
   try {
@@ -171,7 +173,7 @@ async function main() {
   const octokit = getOctokit(process.env.GITHUB_TOKEN);
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const { owner, repo } = context.repo;
-
+  console.log(`Running AI review in ${MODE} mode for ${isPR ? 'PR' : 'release'} on ${owner}/${repo}`);  
   let userPrompt = '';
   if (isPR) {
     const prNumber = context.payload.pull_request.number;
