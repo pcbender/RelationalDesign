@@ -21,6 +21,13 @@ jobs:
       - run: npm ci
       - name: Run AI Light Review
         run: node scripts/ai-review.js --mode=light
+      - name: Commit review history
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .github/ai-review-history.json
+          git diff --staged --quiet || git commit -m "Update AI review history [skip ci]"
+          git push
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.AI_REVIEW_PAT }}
