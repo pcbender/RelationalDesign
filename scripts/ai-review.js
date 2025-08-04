@@ -58,7 +58,7 @@ async function gatherPrDiff(octokit, owner, repo, prNumber, maxChars = 45000) {
 
 function collectContextFiles(root = '.', maxFiles = 30) {
   const extensionsToInclude = ['.html', '.json', '.js', '.css', '.yml', '.yaml', '.md', '.txt', '.xml'];
-  const foldersToIgnore = ['node_modules', '.git', 'dist', 'build'];
+  const foldersToIgnore = ['node_modules', '.git', 'build'];
   const specificFiles = ['package.json', 'README.md', 'robots.txt', 'sitemap.xml', 'index.html'];
 
   const files = [];
