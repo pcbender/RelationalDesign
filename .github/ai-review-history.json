@@ -1,0 +1,22 @@
+{
+  ".github/workflows/ai-deep-review.yml": 1754339259366,
+  ".github/workflows/ai-review.yml": 1754339259366,
+  ".github/workflows/build-site.yml": 1754339259366,
+  ".github/workflows/main.yml": 1754339259366,
+  "README.md": 1754339259366,
+  "dist/GetStarted.html": 1754339259366,
+  "dist/RelationalDesignManifesto.html": 1754339259366,
+  "dist/css/styles.css": 1754339259366,
+  "dist/data/articles.json": 1754339259366,
+  "dist/data/features.json": 1754339259366,
+  "dist/data/footer.json": 1754339259366,
+  "dist/data/menu.json": 1754339259366,
+  "dist/data/recentUpdates.json": 1754339259366,
+  "dist/index.html": 1754339259366,
+  "package-lock.json": 1754339259366,
+  "package.json": 1754339259366,
+  "scripts/ai-review.js": 1754339259366,
+  "scripts/build.js": 1754339259366,
+  "templates/article-template.html": 1754339259366,
+  "templates/home-template.html": 1754339259366
+}
