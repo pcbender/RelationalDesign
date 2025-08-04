@@ -76,7 +76,7 @@ function collectContextFiles(root = '.', maxFiles = 30) {
 
         if (entry.isDirectory()) {
           // Skip ignored folders
-          if (!foldersToIgnore.some(folder => fullPath.includes(folder))) {
+          if (!foldersToIgnore.includes(entry.name)) {
             walkDir(fullPath);
           }
           else {
