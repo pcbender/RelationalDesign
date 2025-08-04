@@ -201,14 +201,15 @@ ${lhSummary.slice(0, 15000)}
 
         const patchResp = await openai.chat.completions.create({
           model: MODE === 'light' ? 'gpt-4o' : 'gpt-4',
-          temperature: 0,
+          temperature: 0.1,
           max_tokens: 2048,
           messages: patchPrompt
         });
 
         console.log(JSON.stringify(patchResp, null, 2));
-        
+
         const patch = patchResp.choices[0].message.content?.trim();
+
         if (patch?.startsWith('diff')) {
           const branch = `ai-fix-${Date.now()}`;
           const defaultBranch = context.payload.repository?.default_branch || 'main';
@@ -220,9 +221,9 @@ ${lhSummary.slice(0, 15000)}
             input: patch,
             stdio: 'inherit'
           });
-          
+
           //await git.applyPatch(patch);
-          
+
           await git.add('.');
           await git.commit(title);
           await git.push('origin', branch);
