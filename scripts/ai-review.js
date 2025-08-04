@@ -74,8 +74,16 @@ function collectContextFiles(root = '.') {
   ).slice(0, 30); // keep it small
   const parts = [];
   for (const rel of candidates) {
-    const body = readIfExists(path.join(root, rel));
-    if (body) parts.push(`\n--- CONTEXT FILE: ${rel} ---\n${body.slice(0, 4000)}`);
+
+    const fullPath = path.join(root, rel)
+    console.log(`Reading context file: ${fullPath}`);
+    const body = readIfExists(fullPath);
+    if (body) {
+      parts.push(`\n--- CONTEXT FILE: ${fullPath} ---\n${body.slice(0, 4000)}`);
+    }
+    else {
+      console.warn(`Skipping empty context file: ${fullPath}`);
+    }
   }
   return parts.join('\n');
 }
