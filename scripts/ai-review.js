@@ -57,7 +57,6 @@ async function gatherPrDiff(octokit, owner, repo, prNumber, maxChars = 45000) {
 }
 
 function collectContextFiles(root = '.') {
-  // sample small context to help model (titles, global layout, Alpine boot)
   const candidates = [
     'index.html',
     'robots.txt',
@@ -65,50 +64,72 @@ function collectContextFiles(root = '.') {
     'package.json',
     'README.md'
   ].concat(
-    glob('**/*.html', 8),
-    glob('data/**/*.json', 8),
-    glob('src/**/*.js', 8),
-    glob('src/**/*.css', 8),
-    glob('.github/workflows/**/*.yml', 5),
-    glob('.github/workflows/**/*.yaml', 5)
-  ).slice(0, 30); // keep it small
+    glob('**/*.html', 8, root),
+    glob('data/**/*.json', 8, root),
+    glob('src/**/*.js', 8, root),
+    glob('src/**/*.css', 8, root),
+    glob('.github/workflows/**/*.yml', 5, root),
+    glob('.github/workflows/**/*.yaml', 5, root)
+  ).slice(0, 30);
+  
   const parts = [];
   for (const rel of candidates) {
-
-    const fullPath = path.join(root, rel)
+    // Don't use path.join here since rel might already be a full path
+    const fullPath = rel.startsWith(root) ? rel : path.join(root, rel);
     console.log(`Reading context file: ${fullPath}`);
     const body = readIfExists(fullPath);
     if (body) {
-      parts.push(`\n--- CONTEXT FILE: ${fullPath} ---\n${body.slice(0, 4000)}`);
-    }
-    else {
+      parts.push(`\n--- CONTEXT FILE: ${rel} ---\n${body.slice(0, 4000)}`);
+    } else {
       console.warn(`Skipping empty context file: ${fullPath}`);
     }
   }
   return parts.join('\n');
 }
 
-function glob(pattern, limit = 50) {
-  // very small naive glob to avoid extra deps
+function glob(pattern, limit = 50, root = '.') {
   const out = [];
+  let totalFiles = 0;
+  
   (function walk(dir) {
-    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      const p = path.join(dir, e.name);
-      if (e.isDirectory()) {
-        if (p.includes('node_modules') || p.startsWith('.git')) continue;
-        try { walk(p); } catch { }
-      } else {
-        out.push(p);
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const e of entries) {
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) {
+          if (p.includes('node_modules') || p.includes('.git')) continue;
+          walk(p);
+        } else {
+          totalFiles++;
+          const relativePath = path.relative(root, p);
+          out.push(relativePath);
+        }
       }
+    } catch (err) {
+      console.warn(`Error reading directory ${dir}:`, err.message);
     }
-  })('.');
-  // filter pattern roughly
-  const rx = new RegExp(pattern
+  })(root);
+  
+  console.log(`Total files found: ${totalFiles}, Pattern: ${pattern}`);
+  
+  const rx = new RegExp('^' + pattern
     .replace(/\*\*/g, '.*')
     .replace(/\*/g, '[^/]*')
     .replace(/\./g, '\\.')
-    .replace(/\//g, '\\/'));
-  return out.filter(p => rx.test(p)).slice(0, limit);
+    .replace(/\//g, '\\/') + '$');
+  
+  const filtered = out.filter(p => {
+    const normalizedPath = p.replace(/\\/g, '/');
+    const matches = rx.test(normalizedPath);
+    if (matches && filtered.length < 5) {
+      console.log(`  Matched: ${normalizedPath}`);
+    }
+    return matches;
+  });
+  
+  console.log(`Files matching pattern: ${filtered.length}`);
+  
+  return filtered.slice(0, limit);
 }
 
 async function main() {
