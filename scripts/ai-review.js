@@ -79,6 +79,9 @@ function collectContextFiles(root = '.', maxFiles = 30) {
           if (!foldersToIgnore.some(folder => fullPath.includes(folder))) {
             walkDir(fullPath);
           }
+          else {
+            console.log(`Skipping ignored folder: ${fullPath}`);
+          }
         } else {
           // Include specific files or files with allowed extensions
           const fileName = path.basename(fullPath);
@@ -86,6 +89,9 @@ function collectContextFiles(root = '.', maxFiles = 30) {
 
           if (specificFiles.includes(fileName) || extensionsToInclude.includes(ext)) {
             files.push(relativePath);
+          }
+          else {
+            console.log(`Skipping file: ${fullPath} (not in specific files or allowed extensions)`);
           }
         }
 
