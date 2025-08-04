@@ -5,6 +5,7 @@ import simpleGit from 'simple-git';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { execSync } from 'child_process';
 
 const MODE = process.argv.includes('--mode=deep') ? 'deep' : 'light';
 const SITE_DIR = (arg => {
@@ -214,7 +215,14 @@ ${lhSummary.slice(0, 15000)}
           const git = simpleGit();
           await git.checkout(defaultBranch);
           await git.checkoutLocalBranch(branch);
-          await git.applyPatch(patch);
+
+          execSync('git apply --whitespace=fix', {
+            input: patch,
+            stdio: 'inherit'
+          });
+          
+          //await git.applyPatch(patch);
+          
           await git.add('.');
           await git.commit(title);
           await git.push('origin', branch);
