@@ -69,6 +69,9 @@ function collectContextFiles(root = '.', maxFiles = 30) {
 
       for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
+
+        console.log(`Checking: ${fullPath}`);
+
         const relativePath = path.relative(root, fullPath);
 
         if (entry.isDirectory()) {
@@ -104,7 +107,11 @@ function collectContextFiles(root = '.', maxFiles = 30) {
       const content = fs.readFileSync(fullPath, 'utf8');
       if (content) {
         const displayPath = file.replace(/\\/g, '/'); // Normalize for display
+        console.log(`Reading: ${displayPath}`);
         parts.push(`\n--- CONTEXT FILE: ${displayPath} ---\n${content.slice(0, 4000)}`);
+      }
+      else {
+        console.warn(`File ${fullPath} is empty or not readable.`);
       }
     } catch (err) {
       console.warn(`Error reading file ${fullPath}:`, err.message);
