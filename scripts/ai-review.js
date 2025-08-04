@@ -60,6 +60,17 @@ function collectContextFiles(root = '.', maxFiles = 30) {
   const extensionsToInclude = ['.html', '.json', '.js', '.css', '.yml', '.yaml', '.md', '.txt', '.xml'];
   const foldersToIgnore = ['node_modules', '.git', 'build'];
   const specificFiles = ['package.json', 'README.md', 'robots.txt', 'sitemap.xml', 'index.html'];
+  const reviewDataFile = path.join(root, '.ai-review-history.json');
+
+  // Load review history
+  let reviewHistory = {};
+  try {
+    const data = fs.readFileSync(reviewDataFile, 'utf8');
+    reviewHistory = JSON.parse(data);
+  } catch (err) {
+    // File doesn't exist or is invalid, start fresh
+    reviewHistory = {};
+  }
 
   const files = [];
 
@@ -88,15 +99,17 @@ function collectContextFiles(root = '.', maxFiles = 30) {
           const ext = path.extname(fullPath).toLowerCase();
 
           if (specificFiles.includes(fileName) || extensionsToInclude.includes(ext)) {
-            files.push(relativePath);
+            const stats = fs.statSync(fullPath);
+            files.push({
+              path: relativePath,
+              modifiedTime: stats.mtime.getTime(),
+              lastReviewed: reviewHistory[relativePath] || 0  // 0 if never reviewed
+            });
           }
           else {
             console.log(`Skipping file: ${fullPath} (not in specific files or allowed extensions)`);
           }
         }
-
-        // Stop early if we have enough files
-        if (files.length >= maxFiles) return;
       }
     } catch (err) {
       console.warn(`Error reading directory ${dir}:`, err.message);
@@ -105,23 +118,48 @@ function collectContextFiles(root = '.', maxFiles = 30) {
 
   walkDir(root);
 
+  // Sort files by priority:
+  // 1. Never reviewed files (lastReviewed === 0)
+  // 2. Files reviewed longest ago
+  files.sort((a, b) => {
+    if (a.lastReviewed === 0 && b.lastReviewed !== 0) return -1;
+    if (a.lastReviewed !== 0 && b.lastReviewed === 0) return 1;
+    return a.lastReviewed - b.lastReviewed;
+  });
+
+  // Take only the top N files
+  const filesToReview = files.slice(0, maxFiles);
+
   // Read and format the files
   const parts = [];
-  for (const file of files.slice(0, maxFiles)) {
-    const fullPath = path.join(root, file);
+  const reviewedFiles = [];
+
+  for (const fileInfo of filesToReview) {
+    const fullPath = path.join(root, fileInfo.path);
     try {
       const content = fs.readFileSync(fullPath, 'utf8');
       if (content) {
-        const displayPath = file.replace(/\\/g, '/'); // Normalize for display
-        console.log(`Reading: ${displayPath}`);
+        const displayPath = fileInfo.path.replace(/\\/g, '/');
         parts.push(`\n--- CONTEXT FILE: ${displayPath} ---\n${content.slice(0, 4000)}`);
-      }
-      else {
-        console.warn(`File ${fullPath} is empty or not readable.`);
+        reviewedFiles.push(fileInfo.path);
       }
     } catch (err) {
       console.warn(`Error reading file ${fullPath}:`, err.message);
     }
+  }
+
+  // Update review history for files we just reviewed
+  const now = Date.now();
+  for (const filePath of reviewedFiles) {
+    reviewHistory[filePath] = now;
+  }
+
+  // Save updated review history
+  try {
+    fs.writeFileSync(reviewDataFile, JSON.stringify(reviewHistory, null, 2));
+    console.log(`Updated review history for ${reviewedFiles.length} files`);
+  } catch (err) {
+    console.error(`Error saving review history:`, err.message);
   }
 
   return parts.join('\n');
