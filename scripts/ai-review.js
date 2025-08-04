@@ -69,6 +69,7 @@ function collectContextFiles(root = '.', maxFiles = 30) {
     reviewHistory = JSON.parse(data);
   } catch (err) {
     // File doesn't exist or is invalid, start fresh
+    console.warn(`Error reading file ${reviewHistory}:`, err.message);
     reviewHistory = {};
   }
 
