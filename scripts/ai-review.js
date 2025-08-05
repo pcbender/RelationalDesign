@@ -292,6 +292,226 @@ function collectContextFiles(root = '.', maxFiles = 10) {
   return parts.join('\n');
 }
 
+async function createBranch(octokit, branchName, baseBranch = 'main') {
+  const ctx = getContext();
+  
+  try {
+    // Get the SHA of the base branch
+    const { data: refData } = await octokit.rest.git.getRef({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      ref: `heads/${baseBranch}`
+    });
+    
+    const baseSha = refData.object.sha;
+    
+    // Create the new branch
+    await octokit.rest.git.createRef({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      ref: `refs/heads/${branchName}`,
+      sha: baseSha
+    });
+    
+    console.log(`Created branch: ${branchName} from ${baseBranch}`);
+  } catch (error) {
+    if (error.status === 422) {
+      console.log(`Branch ${branchName} already exists`);
+    } else {
+      throw error;
+    }
+  }
+}
+
+async function commitAndPushChanges(branchName, fixSummaries) {
+  const git = simpleGit();
+  
+  try {
+    // Make sure we're on the right branch
+    await git.checkout(branchName);
+    
+    // Add all changes
+    await git.add('.');
+    
+    // Create commit message
+    const commitMessage = `🤖 AI Deep Review Fixes
+
+Fixed ${fixSummaries.length} files:
+${fixSummaries.join('\n')}`;
+    
+    // Commit
+    await git.commit(commitMessage);
+    
+    // Push to origin
+    await git.push('origin', branchName);
+    
+    console.log(`Pushed changes to ${branchName}`);
+  } catch (error) {
+    console.error('Error committing changes:', error);
+    throw error;
+  }
+}
+
+// Helper to extract fixed content from AI response
+function extractFixedContent(response) {
+  const match = response.match(/FIXED_CONTENT:\s*\n([\s\S]*?)(?=\nSUMMARY:|$)/);
+  return match ? match[1].trim() : null;
+}
+
+// Helper to extract summary from AI response
+function extractSummary(response) {
+  const match = response.match(/SUMMARY:\s*\n(.*?)(?:\n|$)/);
+  return match ? match[1].trim() : 'Fixed issues';
+}
+
+// Add this function for running deep review
+async function runDeepReview() {
+  const ctx = getContext();
+  const octokit = isLocal 
+    ? new (await import('@octokit/rest')).Octokit({ auth: process.env.GITHUB_TOKEN })
+    : getOctokit(process.env.GITHUB_TOKEN);
+  
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  
+  console.log('Starting deep review of entire repository...');
+  
+  // Determine base branch
+  const baseBranch = process.env.BASE_BRANCH || 'develop';
+  
+  // Create a new branch for fixes
+  const branchName = `feature/ai-fixes-${new Date().toISOString().split('T')[0]}`;
+  await createBranch(octokit, branchName, baseBranch);
+  
+  // Collect all files to review (without priority queue for deep review)
+  const files = collectAllRepoFiles(SITE_DIR, 100);
+  
+  let fixCount = 0;
+  const fixSummaries = [];
+  
+  // Review and fix each file
+  for (const filePath of files) {
+    console.log(`Reviewing ${filePath}...`);
+    
+    const content = fs.readFileSync(path.join(SITE_DIR, filePath), 'utf8');
+    
+    // Ask AI to review AND provide fixes
+    const prompt = `Review this file and provide the complete fixed version if there are any issues.
+    
+File: ${filePath}
+Content:
+${content}
+
+If there are issues, respond with:
+ISSUES_FOUND: true
+FIXED_CONTENT:
+[the complete fixed file content]
+SUMMARY:
+[brief description of what was fixed]
+
+If no issues, respond with:
+ISSUES_FOUND: false`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      temperature: 0.1,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: prompt }
+      ]
+    });
+    
+    const aiResponse = response.choices[0].message.content;
+    
+    // Parse response and apply fixes
+    if (aiResponse.includes('ISSUES_FOUND: true')) {
+      const fixedContent = extractFixedContent(aiResponse);
+      const summary = extractSummary(aiResponse);
+      
+      if (fixedContent) {
+        // Write the fixed file
+        fs.writeFileSync(path.join(SITE_DIR, filePath), fixedContent);
+        fixCount++;
+        fixSummaries.push(`- ${filePath}: ${summary}`);
+        
+        console.log(`  ✓ Fixed: ${summary}`);
+      }
+    } else {
+      console.log(`  ✓ No issues found`);
+    }
+    
+    // Add small delay to respect rate limits
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  
+  if (fixCount > 0) {
+    // Commit all fixes
+    await commitAndPushChanges(branchName, fixSummaries);
+    
+    // Create PR with all fixes
+    const { data: pr } = await octokit.rest.pulls.create({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      title: `🤖 AI Code Improvements - ${fixCount} files fixed`,
+      head: branchName,
+      base: baseBranch,
+      body: `## AI Deep Review Results
+
+This PR contains automated fixes for ${fixCount} files.
+
+### Files Fixed:
+${fixSummaries.join('\n')}
+
+### Review Process:
+- Each file was analyzed for code quality, security, and best practices
+- Fixes were applied automatically
+- Please review changes before merging
+
+_Generated by AI Deep Review_`
+    });
+    
+    console.log(`\nCreated PR #${pr.number} with ${fixCount} fixes`);
+  } else {
+    console.log('\nNo issues found in repository! 🎉');
+  }
+}
+
+// Helper to collect all files (not just recent ones)
+function collectAllRepoFiles(root = '.', maxFiles = 100) {
+  const extensionsToInclude = ['.html', '.js', '.css', '.json', '.md', '.yml', '.yaml'];
+  const foldersToIgnore = ['node_modules', '.git', 'dist', 'build'];
+  
+  const files = [];
+  
+  function walkDir(dir) {
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        const relativePath = path.relative(root, fullPath);
+        
+        if (entry.isDirectory()) {
+          if (!foldersToIgnore.includes(entry.name)) {
+            walkDir(fullPath);
+          }
+        } else {
+          const ext = path.extname(fullPath).toLowerCase();
+          if (extensionsToInclude.includes(ext)) {
+            files.push(relativePath);
+          }
+        }
+        
+        if (files.length >= maxFiles) return;
+      }
+    } catch (err) {
+      console.warn(`Error reading directory ${dir}:`, err.message);
+    }
+  }
+  
+  walkDir(root);
+  return files.slice(0, maxFiles);
+}
+
 async function runLightPRReview() {
   const { Octokit } = require('@octokit/rest');
   const octokit = new Octokit({
