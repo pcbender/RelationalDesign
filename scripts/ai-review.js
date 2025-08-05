@@ -17,7 +17,7 @@ const model = 'gpt-4-turbo';
 
 const encoding = encoding_for_model(model);
 
-const maxTokens = 8192;
+const maxTokens = 32768; // Max tokens for gpt-4-turbo
 const reserveForResponse = 1024;
 const promptBudget = maxTokens - reserveForResponse;
 
