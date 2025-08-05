@@ -40,7 +40,7 @@ if (isLocal) {
 // Helper function to get context whether local or in Actions
 function getContext() {
   if (isLocal) {
-    // Parse repository from env or command line
+    // Parse repository from command line or env
     const repoArg = process.argv.find(arg => arg.startsWith('--repo='));
     const repository = repoArg ? repoArg.split('=')[1] : process.env.GITHUB_REPOSITORY;
     
@@ -76,6 +76,7 @@ function getContext() {
     payload: context.payload
   };
 }
+
 
 const MODE = process.argv.includes('--mode=deep') ? 'deep' : 'light';
 const SITE_DIR = (arg => {
