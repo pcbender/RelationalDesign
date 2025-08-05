@@ -6,11 +6,56 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { execSync } from 'child_process';
+import { encoding_for_model } from '@dqbd/tiktoken';
 
 // Add this at the top of ai-review.js after imports
 
 // Detect if running locally
 const isLocal = !process.env.GITHUB_ACTIONS;
+
+const model = 'gpt-4-turbo';
+
+const encoding = encoding_for_model(model);
+
+const maxTokens = 8192;
+const reserveForResponse = 1024;
+const promptBudget = maxTokens - reserveForResponse;
+
+/**
+ * Returns number of tokens in a string
+ */
+function countTokens(str) {
+  return encoding.encode(str).length;
+}
+
+/**
+ * Builds a token-aware chunk from file contents
+ */
+function buildPromptChunk(fileMap) {
+  const includedFiles = [];
+  let promptText = '';
+  let currentTokens = 0;
+
+  for (const [filename, content] of Object.entries(fileMap)) {
+    const fileText = `\n--- FILE: ${filename} ---\n${content}\n`;
+    const fileTokens = countTokens(fileText);
+
+    if (currentTokens + fileTokens > promptBudget) {
+      console.log(`Stopping before adding: ${filename} — would exceed budget`);
+      break;
+    }
+
+    promptText += fileText;
+    currentTokens += fileTokens;
+    includedFiles.push(filename);
+  }
+
+  return {
+    prompt: promptText,
+    tokensUsed: currentTokens,
+    filesIncluded: includedFiles
+  };
+}
 
 // Setup environment for local development
 if (isLocal) {
@@ -21,7 +66,7 @@ if (isLocal) {
   } catch (e) {
     console.log('Note: dotenv not installed. Using environment variables only.');
   }
-  
+
   // Mock GitHub context for local testing
   if (!process.env.GITHUB_TOKEN) {
     console.error('ERROR: GITHUB_TOKEN environment variable is required');
@@ -43,19 +88,19 @@ function getContext() {
     // Parse repository from command line or env
     const repoArg = process.argv.find(arg => arg.startsWith('--repo='));
     const repository = repoArg ? repoArg.split('=')[1] : process.env.GITHUB_REPOSITORY;
-    
+
     if (!repository || !repository.includes('/')) {
       console.error('ERROR: Repository must be specified as owner/repo');
       console.log('Use: --repo=owner/repo or set GITHUB_REPOSITORY env var');
       process.exit(1);
     }
-    
+
     const [owner, repo] = repository.split('/');
-    
+
     // Check if we're reviewing a specific PR
     const prArg = process.argv.find(arg => arg.startsWith('--pr='));
     const prNumber = prArg ? parseInt(prArg.split('=')[1]) : null;
-    
+
     return {
       isLocal: true,
       owner,
@@ -65,7 +110,7 @@ function getContext() {
       payload: prNumber ? { pull_request: { number: prNumber } } : {}
     };
   }
-  
+
   // In GitHub Actions, use the real context
   return {
     isLocal: false,
@@ -132,7 +177,7 @@ function collectContextFiles(root = '.', maxFiles = 10) {
   const foldersToIgnore = ['node_modules', '.git', 'build'];
   const specificFiles = ['package.json', 'README.md', 'robots.txt', 'sitemap.xml', 'index.html'];
   const reviewDataFile = path.join(root, '.github', 'ai-review-history.json');
-
+  let currentTokens = 0;
   console.log(`Collecting context files from ${root}`);
 
   // Load review history
@@ -213,9 +258,17 @@ function collectContextFiles(root = '.', maxFiles = 10) {
     try {
       const content = fs.readFileSync(fullPath, 'utf8');
       if (content) {
+        const fileTokens = countTokens(content);
+
+        if (currentTokens + fileTokens > promptBudget) {
+          console.log(`Stopping before adding: ${fileInfo.path} — would exceed budget`);
+          break;
+        }
         const displayPath = fileInfo.path.replace(/\\/g, '/');
-        parts.push(`\n--- CONTEXT FILE: ${displayPath} ---\n${content.slice(0, 4000)}`);
+        parts.push(`\n--- CONTEXT FILE: ${displayPath} ---\n${content}`);
         reviewedFiles.push(fileInfo.path);
+
+        currentTokens += fileTokens;
       }
     } catch (err) {
       console.warn(`Error reading file ${fullPath}:`, err.message);
@@ -244,39 +297,39 @@ async function runLightPRReview() {
   const octokit = new Octokit({
     auth: process.env.GITHUB_TOKEN
   });
-  
+
   // Get PR context from GitHub environment variables
   const context = {
     owner: process.env.GITHUB_REPOSITORY_OWNER,
     repo: process.env.GITHUB_REPOSITORY.split('/')[1],
-    pull_number: process.env.GITHUB_EVENT_NAME === 'pull_request' 
+    pull_number: process.env.GITHUB_EVENT_NAME === 'pull_request'
       ? JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')).pull_request.number
       : null
   };
-  
+
   if (!context.pull_number) {
     console.log('Not a PR, skipping review');
     return;
   }
-  
+
   // Get files changed in the PR
   const { data: files } = await octokit.pulls.listFiles({
     owner: context.owner,
     repo: context.repo,
     pull_number: context.pull_number
   });
-  
+
   // Filter for files we care about
   const extensionsToReview = ['.js', '.html', '.css', '.json', '.md'];
-  const filesToReview = files.filter(file => 
+  const filesToReview = files.filter(file =>
     extensionsToReview.some(ext => file.filename.endsWith(ext))
   );
-  
+
   if (filesToReview.length === 0) {
     console.log('No relevant files to review');
     return;
   }
-  
+
   // Collect the changes
   const changes = [];
   for (const file of filesToReview) {
@@ -287,9 +340,9 @@ async function runLightPRReview() {
       path: file.filename,
       ref: context.pull_number ? `pull/${context.pull_number}/head` : 'main'
     });
-    
+
     const fileContent = Buffer.from(content.content, 'base64').toString('utf8');
-    
+
     changes.push({
       filename: file.filename,
       status: file.status,
@@ -299,7 +352,7 @@ async function runLightPRReview() {
       content: fileContent.slice(0, 4000)  // Current content (truncated)
     });
   }
-  
+
   // Create a focused prompt for PR review
   const prompt = `Review these PR changes and provide actionable feedback:
 
@@ -323,7 +376,7 @@ Keep feedback constructive and specific to the changes made.`;
 
   // Call OpenAI once
   const reviewComments = await callOpenAI(prompt);
-  
+
   // Post as a PR comment
   await octokit.issues.createComment({
     owner: context.owner,
@@ -331,40 +384,40 @@ Keep feedback constructive and specific to the changes made.`;
     issue_number: context.pull_number,
     body: `## 🤖 AI Review\n\n${reviewComments}`
   });
-  
+
   console.log('PR review posted successfully');
 }
 
 async function main() {
   const ctx = getContext();
   const isPR = !!ctx.prNumber;
-  
+
   // Use regular Octokit for local, getOctokit for Actions
   const { Octokit } = await import('@octokit/rest');
-  const octokit = isLocal 
+  const octokit = isLocal
     ? new Octokit({ auth: process.env.GITHUB_TOKEN })
     : getOctokit(process.env.GITHUB_TOKEN);
-    
+
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  
+
   console.log(`Running AI review in ${MODE} mode`);
   console.log(`Repository: ${ctx.owner}/${ctx.repo}`);
   console.log(`Mode: ${isPR ? 'PR' : 'release'} review`);
   console.log(`Environment: ${isLocal ? 'local' : 'GitHub Actions'}`);
-  
+
   if (isPR && isLocal) {
     console.log(`Reviewing PR #${ctx.prNumber}`);
   }
-  
+
   let userPrompt = '';
-  
+
   if (isPR) {
     const diff = await gatherPrDiff(octokit, ctx.owner, ctx.repo, ctx.prNumber, MODE === 'light' ? 45000 : 120000);
-    if (!diff) { 
-      console.log('No relevant diff found.'); 
-      return; 
+    if (!diff) {
+      console.log('No relevant diff found.');
+      return;
     }
-    
+
     const contextFiles = MODE === 'deep' ? collectContextFiles(SITE_DIR) : '';
     userPrompt = `Mode: ${MODE.toUpperCase()}
 Review this PR diff (focus on HTML/JSON/Alpine.js). ${MODE === 'light' ? 'Be brief.' : 'Be thorough.'}
@@ -383,7 +436,7 @@ For Alpine.js, check x-data/x-bind/x-on for reactivity and event safety.
     const linkReport = readIfExists('link-report.json');
     const htmlValidate = readIfExists('htmlvalidate.json');
     const lhSummary = readIfExists('.lighthouseci/lhr-*.json') || '';
-    
+
     userPrompt = `Mode: ${MODE.toUpperCase()}
 This is a release deep review for a static site (HTML + JSON + Alpine.js).
 Use the reports below to ground findings and propose fixes.
@@ -404,7 +457,7 @@ ${lhSummary.slice(0, 15000)}
 
   console.log('\nCalling OpenAI API...');
   const resp = await openai.chat.completions.create({
-    model: MODE === 'light' ? 'gpt-4o' : 'gpt-4',
+    model: model,
     temperature: 0.1,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
@@ -422,10 +475,10 @@ ${lhSummary.slice(0, 15000)}
     console.log('='.repeat(80));
     console.log(reviewBody);
     console.log('='.repeat(80) + '\n');
-    
+
     if (isPR) {
       console.log('\nTo post this review to GitHub, add --post flag');
-      
+
       if (process.argv.includes('--post')) {
         await octokit.rest.issues.createComment({
           owner: ctx.owner,
@@ -437,7 +490,7 @@ ${lhSummary.slice(0, 15000)}
       }
     } else {
       console.log('\nTo create an issue with this review, add --post flag');
-      
+
       if (process.argv.includes('--post')) {
         const issue = await octokit.rest.issues.create({
           owner: ctx.owner,

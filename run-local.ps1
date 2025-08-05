@@ -50,12 +50,13 @@ if (Test-Path $envFile) {
         if ($_ -match '^([^#][^=]+)=(.*)$') {
             $key = $matches[1].Trim()
             $value = $matches[2].Trim()
-            # Only set if not already set in environment
-            if (-not (Test-Path env:$key)) {
-                [Environment]::SetEnvironmentVariable($key, $value, "Process")
-            }
+            Write-Host "Setting environment variable: $key" -ForegroundColor Gray
+            [Environment]::SetEnvironmentVariable($key, $value, "Process")
         }
     }
+}
+else {
+    Write-Host "No .env file found, using environment variables only." -ForegroundColor Redexit 1
 }
 
 # Check for required environment variables
@@ -73,19 +74,28 @@ if (-not $env:OPENAI_API_KEY) {
     exit 1
 }
 
+Write-Host "repo before: $($repo)" -ForegroundColor Gray
+
 # Use repo from parameter or environment
 if (-not $repo) {
     if ($env:GITHUB_REPOSITORY) {
         $repo = $env:GITHUB_REPOSITORY
         Write-Host "Using repository from .env: $repo" -ForegroundColor Gray
-    } else {
+    }
+    else {
         Write-Host "ERROR: -repo owner/repo is required (or set GITHUB_REPOSITORY in .env)" -ForegroundColor Red
         exit 1
     }
 }
 
+Write-Host "repo after: $($repo)" -ForegroundColor Gray
+
 # Build the command
-$cmd = @("node", "scripts/ai-review.js", "--mode=$mode", "--siteDir=$siteDir")
+$cmd = @("node", "scripts/ai-review.js")
+
+# Add mode (already has the value, not --mode=value format)
+$cmd += "--mode=$mode"
+$cmd += "--siteDir=$siteDir"
 
 if ($pr) {
     $cmd += "--pr=$pr"
@@ -95,11 +105,14 @@ if ($post) {
     $cmd += "--post"
 }
 
-# Set repository for the script
+# Add repo argument
+$cmd += "--repo=$repo"
+
+# Set repository for the script (for backward compatibility)
 $env:GITHUB_REPOSITORY = $repo
 
 Write-Host "Running: $($cmd -join ' ')" -ForegroundColor Green
 Write-Host ""
 
 # Run the review
-& $cmd[0] $cmd[1..($cmd.Length-1)]
+& $cmd[0] $cmd[1..($cmd.Length - 1)]

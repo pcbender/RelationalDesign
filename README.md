@@ -156,3 +156,20 @@ Debug issues without GitHub Actions delays
 Run reviews on demand during development
 
 The script detects whether it's running locally or in GitHub Actions and adapts accordingly!
+
+
+PowerShell:
+powershell.\run-local.ps1                    # Reviews pcbender/RelationalDesign
+.\run-local.ps1 -pr 42             # Reviews PR #42 in pcbender/RelationalDesign
+.\run-local.ps1 -mode deep -post   # Deep review and post to pcbender/RelationalDesign
+Command Prompt:
+cmdrun-local.cmd                      # Reviews pcbender/RelationalDesign
+run-local.cmd --pr=42              # Reviews PR #42 in pcbender/RelationalDesign
+run-local.cmd --mode=deep --post   # Deep review and post to pcbender/RelationalDesign
+If you ever need to review a different repo, you can still override it:
+powershell.\run-local.ps1 -repo otherorg/otherrepo
+Much cleaner for your day-to-day usage! The scripts will:
+
+Use the repo from .env by default
+Show which repo they're using
+Allow overriding when needed
