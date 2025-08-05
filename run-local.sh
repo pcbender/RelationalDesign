@@ -25,7 +25,7 @@ fi
 
 # Default values
 MODE="light"
-REPO=""
+REPO="${GITHUB_REPOSITORY:-}"  # Use env var as default
 PR=""
 POST=""
 SITE_DIR="."
@@ -64,14 +64,17 @@ while [[ $# -gt 0 ]]; do
             echo "  --site-dir=path      Site directory (default: .)"
             echo ""
             echo "Examples:"
-            echo "  # Review local files"
-            echo "  ./run-local.sh --repo=myorg/myrepo"
+            echo "  # Review local files (uses repo from .env)"
+            echo "  ./run-local.sh"
             echo ""
             echo "  # Review a specific PR"
-            echo "  ./run-local.sh --repo=myorg/myrepo --pr=42"
+            echo "  ./run-local.sh --pr=42"
+            echo ""
+            echo "  # Review a different repo"
+            echo "  ./run-local.sh --repo=otherorg/otherrepo"
             echo ""
             echo "  # Deep review and post results"
-            echo "  ./run-local.sh --repo=myorg/myrepo --mode=deep --post"
+            echo "  ./run-local.sh --mode=deep --post"
             exit 0
             ;;
         *)
@@ -83,9 +86,11 @@ done
 
 # Check required args
 if [ -z "$REPO" ]; then
-    echo "ERROR: --repo=owner/repo is required"
+    echo "ERROR: --repo=owner/repo is required (or set GITHUB_REPOSITORY in .env)"
     exit 1
 fi
+
+echo "Using repository: $REPO"
 
 # Build the command
 CMD="node scripts/ai-review.js --mode=$MODE --siteDir=$SITE_DIR"

@@ -19,9 +19,19 @@ if "%OPENAI_API_KEY%"=="" (
     exit /b 1
 )
 
+:: Load .env file if it exists to get defaults
+if exist .env (
+    for /f "tokens=1,2 delims==" %%a in (.env) do (
+        echo %%a | findstr /b "#" >nul
+        if errorlevel 1 (
+            set %%a=%%b
+        )
+    )
+)
+
 :: Default values
 set MODE=light
-set REPO=
+set REPO=%GITHUB_REPOSITORY%
 set PR=
 set POST=
 set SITE_DIR=.
@@ -91,9 +101,11 @@ set SITE_DIR=!SITE_DIR:*--site-dir=!
 
 :: Check required args
 if "!REPO!"=="" (
-    echo ERROR: --repo=owner/repo is required
+    echo ERROR: --repo=owner/repo is required ^(or set GITHUB_REPOSITORY in .env^)
     exit /b 1
 )
+
+echo Using repository: !REPO!
 
 :: Build the command
 set CMD=node scripts/ai-review.js --mode=!MODE! --siteDir=!SITE_DIR!
@@ -127,12 +139,15 @@ echo   --post               Actually post the review (dry-run by default)
 echo   --site-dir=path      Site directory (default: .)
 echo.
 echo Examples:
-echo   # Review local files
-echo   run-local.cmd --repo=myorg/myrepo
+echo   # Review local files (uses repo from .env)
+echo   run-local.cmd
 echo.
 echo   # Review a specific PR
-echo   run-local.cmd --repo=myorg/myrepo --pr=42
+echo   run-local.cmd --pr=42
+echo.
+echo   # Review a different repo
+echo   run-local.cmd --repo=otherorg/otherrepo
 echo.
 echo   # Deep review and post results
-echo   run-local.cmd --repo=myorg/myrepo --mode=deep --post
+echo   run-local.cmd --mode=deep --post
 exit /b 0

@@ -27,14 +27,17 @@ Options:
   -help                Show this help
 
 Examples:
-  # Review local files
-  .\run-local.ps1 -repo myorg/myrepo
+  # Review local files (uses repo from .env)
+  .\run-local.ps1
 
   # Review a specific PR
-  .\run-local.ps1 -repo myorg/myrepo -pr 42
+  .\run-local.ps1 -pr 42
+
+  # Review a different repo
+  .\run-local.ps1 -repo otherorg/otherrepo
 
   # Deep review and post results
-  .\run-local.ps1 -repo myorg/myrepo -mode deep -post
+  .\run-local.ps1 -mode deep -post
 "@
     exit 0
 }
@@ -70,10 +73,15 @@ if (-not $env:OPENAI_API_KEY) {
     exit 1
 }
 
-# Check required args
+# Use repo from parameter or environment
 if (-not $repo) {
-    Write-Host "ERROR: -repo owner/repo is required" -ForegroundColor Red
-    exit 1
+    if ($env:GITHUB_REPOSITORY) {
+        $repo = $env:GITHUB_REPOSITORY
+        Write-Host "Using repository from .env: $repo" -ForegroundColor Gray
+    } else {
+        Write-Host "ERROR: -repo owner/repo is required (or set GITHUB_REPOSITORY in .env)" -ForegroundColor Red
+        exit 1
+    }
 }
 
 # Build the command
