@@ -72,3 +72,87 @@ Then run:
 ```bash
 git push
 ```
+Windows Setup Instructions:
+
+Run the setup script (one time only):
+
+cmdsetup-windows.cmd
+This will create the .env file and install dependencies.
+
+Edit your .env file with your API keys
+Choose your preferred method:
+
+Option A: PowerShell (Recommended)
+powershell# You might need to allow script execution first (run as admin):
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+# Then run reviews:
+.\run-local.ps1 -repo YourOrg/YourRepo
+.\run-local.ps1 -repo YourOrg/YourRepo -pr 123
+.\run-local.ps1 -repo YourOrg/YourRepo -mode deep -post
+Option B: Command Prompt (Batch)
+cmdrun-local.cmd --repo=YourOrg/YourRepo
+run-local.cmd --repo=YourOrg/YourRepo --pr=123
+run-local.cmd --repo=YourOrg/YourRepo --mode=deep --post
+Option C: Direct Node.js
+cmdset GITHUB_REPOSITORY=YourOrg/YourRepo
+node scripts/ai-review.js --mode=light --pr=123
+Key Differences:
+
+PowerShell script has better parameter handling and can auto-load .env
+Batch script works everywhere but syntax is clunkier
+Both support the same features as the bash version
+
+The PowerShell version is generally better on Windows, but I included both so you can use whatever you're comfortable with!
+
+
+Setup Instructions:
+
+Install dependencies:
+
+bashnpm install dotenv  # Optional but recommended
+
+Create .env file:
+
+bashcp .env.example .env
+# Edit .env with your tokens
+
+Make the script executable:
+
+bashchmod +x run-local.sh
+
+Add to .gitignore:
+
+.env
+.env.local
+Usage Examples:
+bash# Review current directory files
+./run-local.sh --repo=YourOrg/YourRepo
+
+# Review a specific PR (dry run)
+./run-local.sh --repo=YourOrg/YourRepo --pr=123
+
+# Deep review and actually post the results
+./run-local.sh --repo=YourOrg/YourRepo --mode=deep --post
+
+# Review a different directory
+./run-local.sh --repo=YourOrg/YourRepo --site-dir=./dist
+
+# Or run directly with Node:
+GITHUB_REPOSITORY=YourOrg/YourRepo node scripts/ai-review.js --mode=light --pr=123
+Key Features:
+
+Dry run by default - Reviews are printed to console unless --post is used
+Works with PRs - Can review specific PRs with --pr=NUMBER
+No code duplication - Same script works locally and in Actions
+Clear output - Shows what it's doing and the results
+Environment flexible - Use .env file or export variables
+
+This setup lets you:
+
+Test changes locally before committing
+Review your feature branch before pushing
+Debug issues without GitHub Actions delays
+Run reviews on demand during development
+
+The script detects whether it's running locally or in GitHub Actions and adapts accordingly!
