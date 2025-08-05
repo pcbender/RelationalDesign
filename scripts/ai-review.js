@@ -8,54 +8,48 @@ import process from 'node:process';
 import { execSync } from 'child_process';
 import { encoding_for_model } from '@dqbd/tiktoken';
 
-// Add this at the top of ai-review.js after imports
-
-// Detect if running locally
+// Configuration
+const MODE = process.argv.includes('--mode=deep') ? 'deep' : 'light';
+const SITE_DIR = (() => {
+  const f = process.argv.find(a => a.startsWith('--siteDir='));
+  return f ? f.split('=')[1] : '.';
+})();
+const CREATE_PR = process.argv.includes('--create-pr');
 const isLocal = !process.env.GITHUB_ACTIONS;
 
+// Model configuration
 const model = 'gpt-4-turbo';
-
 const encoding = encoding_for_model(model);
-
 const maxTokens = 32768; // Max tokens for gpt-4-turbo
 const reserveForResponse = 1024;
 const promptBudget = maxTokens - reserveForResponse;
 
-/**
- * Returns number of tokens in a string
- */
-function countTokens(str) {
-  return encoding.encode(str).length;
-}
+// System prompt
+const SYSTEM_PROMPT = `
+You are an expert reviewer for static sites built with HTML, JSON data files, and Alpine.js.
+Return a concise, actionable report with bullet points and clear headings.
+When citing, include file and approximate line numbers if present.
 
-/**
- * Builds a token-aware chunk from file contents
- */
-function buildPromptChunk(fileMap) {
-  const includedFiles = [];
-  let promptText = '';
-  let currentTokens = 0;
+Prioritize (in order):
+1) Correctness & Safety (broken markup, Alpine directives/x-data, event handling, security: unsafe HTML injection).
+2) Accessibility (semantic HTML, labels, contrast cues, keyboard nav, aria-* sanity).
+3) Performance for static sites (critical CSS, image sizes, caching hints, script weight, render-blocking, LCP/CLS risk).
+4) SEO basics for static (unique titles, meta, canonical, headings structure, alt text).
+5) JSON integrity (structure, null/undefined handling; propose schemas; call out content pitfalls).
+6) Authoring quality in visible text (spelling/grammar/style) — be brief, suggest edits.
+7) Release checklist (for deep mode only): sitemaps/robots, link integrity, 404s, hreflang (if any), Lighthouse/LCP notes.
 
-  for (const [filename, content] of Object.entries(fileMap)) {
-    const fileText = `\n--- FILE: ${filename} ---\n${content}\n`;
-    const fileTokens = countTokens(fileText);
-
-    if (currentTokens + fileTokens > promptBudget) {
-      console.log(`Stopping before adding: ${filename} — would exceed budget`);
-      break;
-    }
-
-    promptText += fileText;
-    currentTokens += fileTokens;
-    includedFiles.push(filename);
-  }
-
-  return {
-    prompt: promptText,
-    tokensUsed: currentTokens,
-    filesIncluded: includedFiles
-  };
-}
+Output sections (always in this order):
+- Summary
+- Critical Issues
+- Accessibility
+- Performance
+- SEO
+- JSON/Data
+- Content (Spelling/Grammar)
+- Release Checklist (only include in deep mode)
+- Suggested Fixes (short, concrete patch suggestions)
+`;
 
 // Setup environment for local development
 if (isLocal) {
@@ -67,7 +61,7 @@ if (isLocal) {
     console.log('Note: dotenv not installed. Using environment variables only.');
   }
 
-  // Mock GitHub context for local testing
+  // Check for required environment variables
   if (!process.env.GITHUB_TOKEN) {
     console.error('ERROR: GITHUB_TOKEN environment variable is required');
     console.log('\nTo run locally:');
@@ -80,6 +74,19 @@ if (isLocal) {
     console.log('   export OPENAI_API_KEY=...');
     process.exit(1);
   }
+}
+
+// Utility functions
+function readIfExists(p) { 
+  try { 
+    return fs.readFileSync(p, 'utf8'); 
+  } catch { 
+    return ''; 
+  } 
+}
+
+function countTokens(str) {
+  return encoding.encode(str).length;
 }
 
 // Helper function to get context whether local or in Actions
@@ -122,49 +129,20 @@ function getContext() {
   };
 }
 
-
-const MODE = process.argv.includes('--mode=deep') ? 'deep' : 'light';
-const SITE_DIR = (arg => {
-  const f = process.argv.find(a => a.startsWith('--siteDir='));
-  return f ? f.split('=')[1] : '.';
-})();
-const CREATE_PR = process.argv.includes('--create-pr');
-
-const SYSTEM_PROMPT = `
-You are an expert reviewer for static sites built with HTML, JSON data files, and Alpine.js.
-Return a concise, actionable report with bullet points and clear headings.
-When citing, include file and approximate line numbers if present.
-
-Prioritize (in order):
-1) Correctness & Safety (broken markup, Alpine directives/x-data, event handling, security: unsafe HTML injection).
-2) Accessibility (semantic HTML, labels, contrast cues, keyboard nav, aria-* sanity).
-3) Performance for static sites (critical CSS, image sizes, caching hints, script weight, render-blocking, LCP/CLS risk).
-4) SEO basics for static (unique titles, meta, canonical, headings structure, alt text).
-5) JSON integrity (structure, null/undefined handling; propose schemas; call out content pitfalls).
-6) Authoring quality in visible text (spelling/grammar/style) — be brief, suggest edits.
-7) Release checklist (for deep mode only): sitemaps/robots, link integrity, 404s, hreflang (if any), Lighthouse/LCP notes.
-
-Output sections (always in this order):
-- Summary
-- Critical Issues
-- Accessibility
-- Performance
-- SEO
-- JSON/Data
-- Content (Spelling/Grammar)
-- Release Checklist (only include in deep mode)
-- Suggested Fixes (short, concrete patch suggestions)
-`;
-
-function readIfExists(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
-
+// Gather PR diff
 async function gatherPrDiff(octokit, owner, repo, prNumber, maxChars = 45000) {
-  const { data: files } = await octokit.rest.pulls.listFiles({ owner, repo, pull_number: prNumber });
+  const { data: files } = await octokit.rest.pulls.listFiles({ 
+    owner, 
+    repo, 
+    pull_number: prNumber 
+  });
+  
   let bundle = '';
   for (const f of files) {
     if (!['added', 'modified', 'renamed'].includes(f.status)) continue;
     if (!f.patch) continue;
-    if (!/\.(html?|json|md|js|css)$/i.test(f.filename)) continue; // focus
+    if (!/\.(html?|json|md|js|css)$/i.test(f.filename)) continue;
+    
     const header = `\n\n--- FILE: ${f.filename} (${f.status}) ---\n`;
     if ((bundle + header + f.patch).length > maxChars) break;
     bundle += header + f.patch;
@@ -172,12 +150,17 @@ async function gatherPrDiff(octokit, owner, repo, prNumber, maxChars = 45000) {
   return bundle;
 }
 
+// Collect context files with token budget
 function collectContextFiles(root = '.', maxFiles = 10) {
   const extensionsToInclude = ['.html', '.json', '.js', '.css', '.yml', '.yaml', '.md', '.txt', '.xml'];
   const foldersToIgnore = ['node_modules', '.git', 'build'];
   const specificFiles = ['package.json', 'README.md', 'robots.txt', 'sitemap.xml', 'index.html'];
-  const reviewDataFile = path.join(root, '.github', 'ai-review-history.json');
+  
+  // Use different history files for local vs GitHub Actions
+  const historyFileName = isLocal ? 'ai-review-history-local.json' : 'ai-review-history.json';
+  const reviewDataFile = path.join(root, '.github', historyFileName);
   let currentTokens = 0;
+  
   console.log(`Collecting context files from ${root}`);
 
   // Load review history
@@ -186,8 +169,7 @@ function collectContextFiles(root = '.', maxFiles = 10) {
     const data = fs.readFileSync(reviewDataFile, 'utf8');
     reviewHistory = JSON.parse(data);
   } catch (err) {
-    // File doesn't exist or is invalid, start fresh
-    console.warn(`Error reading file ${reviewHistory}:`, err.message);
+    console.log('No review history found, starting fresh');
     reviewHistory = {};
   }
 
@@ -199,34 +181,34 @@ function collectContextFiles(root = '.', maxFiles = 10) {
 
       for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
-
-        console.log(`Checking: ${fullPath}`);
-
         const relativePath = path.relative(root, fullPath);
 
         if (entry.isDirectory()) {
-          // Skip ignored folders
           if (!foldersToIgnore.includes(entry.name)) {
             walkDir(fullPath);
           }
-          else {
-            console.log(`Skipping ignored folder: ${fullPath}`);
-          }
         } else {
-          // Include specific files or files with allowed extensions
           const fileName = path.basename(fullPath);
           const ext = path.extname(fullPath).toLowerCase();
 
-          if (specificFiles.includes(fileName) || extensionsToInclude.includes(ext)) {
+          // Check if file should be excluded
+          const shouldExclude = excludeFiles.some(pattern => {
+            if (pattern.includes('*')) {
+              // Simple wildcard matching
+              const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+              return regex.test(fileName);
+            }
+            return fileName === pattern;
+          });
+
+          if (!shouldExclude && 
+              (specificFiles.includes(fileName) || extensionsToInclude.includes(ext))) {
             const stats = fs.statSync(fullPath);
             files.push({
               path: relativePath,
               modifiedTime: stats.mtime.getTime(),
-              lastReviewed: reviewHistory[relativePath] || 0  // 0 if never reviewed
+              lastReviewed: reviewHistory[relativePath] || 0
             });
-          }
-          else {
-            console.log(`Skipping file: ${fullPath} (not in specific files or allowed extensions)`);
           }
         }
       }
@@ -237,37 +219,32 @@ function collectContextFiles(root = '.', maxFiles = 10) {
 
   walkDir(root);
 
-  // Sort files by priority:
-  // 1. Never reviewed files (lastReviewed === 0)
-  // 2. Files reviewed longest ago
+  // Sort files by priority
   files.sort((a, b) => {
     if (a.lastReviewed === 0 && b.lastReviewed !== 0) return -1;
     if (a.lastReviewed !== 0 && b.lastReviewed === 0) return 1;
     return a.lastReviewed - b.lastReviewed;
   });
 
-  // Take only the top N files
-  const filesToReview = files.slice(0, maxFiles);
-
-  // Read and format the files
+  // Build token-aware content
   const parts = [];
   const reviewedFiles = [];
 
-  for (const fileInfo of filesToReview) {
+  for (const fileInfo of files.slice(0, maxFiles)) {
     const fullPath = path.join(root, fileInfo.path);
     try {
       const content = fs.readFileSync(fullPath, 'utf8');
       if (content) {
-        const fileTokens = countTokens(content);
+        const fileText = `\n--- CONTEXT FILE: ${fileInfo.path.replace(/\\/g, '/')} ---\n${content}`;
+        const fileTokens = countTokens(fileText);
 
         if (currentTokens + fileTokens > promptBudget) {
-          console.log(`Stopping before adding: ${fileInfo.path} — would exceed budget`);
+          console.log(`Stopping before adding: ${fileInfo.path} — would exceed token budget`);
           break;
         }
-        const displayPath = fileInfo.path.replace(/\\/g, '/');
-        parts.push(`\n--- CONTEXT FILE: ${displayPath} ---\n${content}`);
+        
+        parts.push(fileText);
         reviewedFiles.push(fileInfo.path);
-
         currentTokens += fileTokens;
       }
     } catch (err) {
@@ -275,23 +252,90 @@ function collectContextFiles(root = '.', maxFiles = 10) {
     }
   }
 
-  // Update review history for files we just reviewed
+  // Update review history
   const now = Date.now();
   for (const filePath of reviewedFiles) {
     reviewHistory[filePath] = now;
   }
 
-  // Save updated review history
   try {
+    // Ensure .github directory exists
+    const githubDir = path.join(root, '.github');
+    if (!fs.existsSync(githubDir)) {
+      fs.mkdirSync(githubDir, { recursive: true });
+    }
+    
     fs.writeFileSync(reviewDataFile, JSON.stringify(reviewHistory, null, 2));
-    console.log(`Updated review history for ${reviewedFiles.length} files`);
+    console.log(`Updated review history for ${reviewedFiles.length} files in ${historyFileName}`);
   } catch (err) {
     console.error(`Error saving review history:`, err.message);
   }
 
+  console.log(`Collected ${reviewedFiles.length} files using ${currentTokens} tokens`);
   return parts.join('\n');
 }
 
+// Helper to collect all files (for deep review)
+function collectAllRepoFiles(root = '.', maxFiles = 100) {
+  const extensionsToInclude = ['.html', '.js', '.css', '.json', '.md', '.yml', '.yaml'];
+  const foldersToIgnore = ['node_modules', '.git', 'dist', 'build', '.next', 'coverage'];
+  const excludeFiles = [
+    'package-lock.json',
+    'yarn.lock',
+    'pnpm-lock.yaml',
+    '.env',
+    '.env.local',
+    '*.min.js',
+    '*.min.css',
+    '*.map',
+    'ai-review-history.json',
+    'ai-review-history-local.json'
+  ];
+  const files = [];
+  
+  function walkDir(dir) {
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        const relativePath = path.relative(root, fullPath);
+        
+        if (entry.isDirectory()) {
+          if (!foldersToIgnore.includes(entry.name)) {
+            walkDir(fullPath);
+          }
+        } else {
+          const ext = path.extname(fullPath).toLowerCase();
+          const fileName = path.basename(fullPath);
+          
+          // Check if file should be excluded
+          const shouldExclude = excludeFiles.some(pattern => {
+            if (pattern.includes('*')) {
+              // Simple wildcard matching
+              const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+              return regex.test(fileName);
+            }
+            return fileName === pattern;
+          });
+          
+          if (!shouldExclude && extensionsToInclude.includes(ext)) {
+            files.push(relativePath);
+          }
+        }
+        
+        if (files.length >= maxFiles) return;
+      }
+    } catch (err) {
+      console.warn(`Error reading directory ${dir}:`, err.message);
+    }
+  }
+  
+  walkDir(root);
+  return files.slice(0, maxFiles);
+}
+
+// Branch management helpers
 async function createBranch(octokit, branchName, baseBranch = 'main') {
   const ctx = getContext();
   
@@ -327,22 +371,15 @@ async function commitAndPushChanges(branchName, fixSummaries) {
   const git = simpleGit();
   
   try {
-    // Make sure we're on the right branch
     await git.checkout(branchName);
-    
-    // Add all changes
     await git.add('.');
     
-    // Create commit message
     const commitMessage = `🤖 AI Deep Review Fixes
 
 Fixed ${fixSummaries.length} files:
 ${fixSummaries.join('\n')}`;
     
-    // Commit
     await git.commit(commitMessage);
-    
-    // Push to origin
     await git.push('origin', branchName);
     
     console.log(`Pushed changes to ${branchName}`);
@@ -352,37 +389,103 @@ ${fixSummaries.join('\n')}`;
   }
 }
 
-// Helper to extract fixed content from AI response
+// Extraction helpers
 function extractFixedContent(response) {
   const match = response.match(/FIXED_CONTENT:\s*\n([\s\S]*?)(?=\nSUMMARY:|$)/);
   return match ? match[1].trim() : null;
 }
 
-// Helper to extract summary from AI response
 function extractSummary(response) {
   const match = response.match(/SUMMARY:\s*\n(.*?)(?:\n|$)/);
   return match ? match[1].trim() : 'Fixed issues';
 }
 
-// Add this function for running deep review
+// Light PR Review (for PR events)
+async function runLightPRReview() {
+  const ctx = getContext();
+  const { Octokit } = await import('@octokit/rest');
+  const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+  if (!ctx.prNumber) {
+    console.log('Not a PR, skipping review');
+    return;
+  }
+
+  // Get files changed in the PR
+  const { data: files } = await octokit.rest.pulls.listFiles({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    pull_number: ctx.prNumber
+  });
+
+  // Filter for relevant files
+  const extensionsToReview = ['.js', '.html', '.css', '.json', '.md'];
+  const filesToReview = files.filter(file =>
+    extensionsToReview.some(ext => file.filename.endsWith(ext))
+  );
+
+  if (filesToReview.length === 0) {
+    console.log('No relevant files to review');
+    return;
+  }
+
+  // Build the diff content
+  const diff = await gatherPrDiff(octokit, ctx.owner, ctx.repo, ctx.prNumber);
+  
+  const prompt = `Review these PR changes and provide actionable feedback:
+
+${diff}
+
+Focus on:
+1. Any bugs or issues
+2. Code quality improvements
+3. Security concerns
+4. Performance suggestions
+
+Keep feedback constructive and specific to the changes made.`;
+
+  // Call OpenAI
+  console.log('Calling OpenAI API for PR review...');
+  const response = await openai.chat.completions.create({
+    model: model,
+    temperature: 0.1,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: prompt }
+    ]
+  });
+
+  const reviewBody = response.choices[0].message.content?.trim() || '(no output)';
+
+  // Post as PR comment
+  await octokit.rest.issues.createComment({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: ctx.prNumber,
+    body: `## 🤖 AI Light Review\n\n${reviewBody}`
+  });
+
+  console.log('PR review posted successfully');
+}
+
+// Deep Review (creates fixes)
 async function runDeepReview() {
   const ctx = getContext();
-  const octokit = isLocal 
-    ? new (await import('@octokit/rest')).Octokit({ auth: process.env.GITHUB_TOKEN })
-    : getOctokit(process.env.GITHUB_TOKEN);
-  
+  const { Octokit } = await import('@octokit/rest');
+  const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   
   console.log('Starting deep review of entire repository...');
   
   // Determine base branch
-  const baseBranch = process.env.BASE_BRANCH || 'develop';
+  const baseBranch = process.env.BASE_BRANCH || 'main';
   
-  // Create a new branch for fixes
+  // Create feature branch
   const branchName = `feature/ai-fixes-${new Date().toISOString().split('T')[0]}`;
   await createBranch(octokit, branchName, baseBranch);
   
-  // Collect all files to review (without priority queue for deep review)
+  // Collect all files
   const files = collectAllRepoFiles(SITE_DIR, 100);
   
   let fixCount = 0;
@@ -394,7 +497,6 @@ async function runDeepReview() {
     
     const content = fs.readFileSync(path.join(SITE_DIR, filePath), 'utf8');
     
-    // Ask AI to review AND provide fixes
     const prompt = `Review this file and provide the complete fixed version if there are any issues.
     
 File: ${filePath}
@@ -412,7 +514,7 @@ If no issues, respond with:
 ISSUES_FOUND: false`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: model,
       temperature: 0.1,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
@@ -422,32 +524,27 @@ ISSUES_FOUND: false`;
     
     const aiResponse = response.choices[0].message.content;
     
-    // Parse response and apply fixes
     if (aiResponse.includes('ISSUES_FOUND: true')) {
       const fixedContent = extractFixedContent(aiResponse);
       const summary = extractSummary(aiResponse);
       
       if (fixedContent) {
-        // Write the fixed file
         fs.writeFileSync(path.join(SITE_DIR, filePath), fixedContent);
         fixCount++;
         fixSummaries.push(`- ${filePath}: ${summary}`);
-        
         console.log(`  ✓ Fixed: ${summary}`);
       }
     } else {
       console.log(`  ✓ No issues found`);
     }
     
-    // Add small delay to respect rate limits
+    // Rate limit delay
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
   
   if (fixCount > 0) {
-    // Commit all fixes
     await commitAndPushChanges(branchName, fixSummaries);
     
-    // Create PR with all fixes
     const { data: pr } = await octokit.rest.pulls.create({
       owner: ctx.owner,
       repo: ctx.repo,
@@ -475,144 +572,24 @@ _Generated by AI Deep Review_`
   }
 }
 
-// Helper to collect all files (not just recent ones)
-function collectAllRepoFiles(root = '.', maxFiles = 100) {
-  const extensionsToInclude = ['.html', '.js', '.css', '.json', '.md', '.yml', '.yaml'];
-  const foldersToIgnore = ['node_modules', '.git', 'dist', 'build'];
-  
-  const files = [];
-  
-  function walkDir(dir) {
-    try {
-      const entries = fs.readdirSync(dir, { withFileTypes: true });
-      
-      for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
-        const relativePath = path.relative(root, fullPath);
-        
-        if (entry.isDirectory()) {
-          if (!foldersToIgnore.includes(entry.name)) {
-            walkDir(fullPath);
-          }
-        } else {
-          const ext = path.extname(fullPath).toLowerCase();
-          if (extensionsToInclude.includes(ext)) {
-            files.push(relativePath);
-          }
-        }
-        
-        if (files.length >= maxFiles) return;
-      }
-    } catch (err) {
-      console.warn(`Error reading directory ${dir}:`, err.message);
-    }
-  }
-  
-  walkDir(root);
-  return files.slice(0, maxFiles);
-}
-
-async function runLightPRReview() {
-  const { Octokit } = require('@octokit/rest');
-  const octokit = new Octokit({
-    auth: process.env.GITHUB_TOKEN
-  });
-
-  // Get PR context from GitHub environment variables
-  const context = {
-    owner: process.env.GITHUB_REPOSITORY_OWNER,
-    repo: process.env.GITHUB_REPOSITORY.split('/')[1],
-    pull_number: process.env.GITHUB_EVENT_NAME === 'pull_request'
-      ? JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')).pull_request.number
-      : null
-  };
-
-  if (!context.pull_number) {
-    console.log('Not a PR, skipping review');
-    return;
-  }
-
-  // Get files changed in the PR
-  const { data: files } = await octokit.pulls.listFiles({
-    owner: context.owner,
-    repo: context.repo,
-    pull_number: context.pull_number
-  });
-
-  // Filter for files we care about
-  const extensionsToReview = ['.js', '.html', '.css', '.json', '.md'];
-  const filesToReview = files.filter(file =>
-    extensionsToReview.some(ext => file.filename.endsWith(ext))
-  );
-
-  if (filesToReview.length === 0) {
-    console.log('No relevant files to review');
-    return;
-  }
-
-  // Collect the changes
-  const changes = [];
-  for (const file of filesToReview) {
-    // Get the file content
-    const { data: content } = await octokit.repos.getContent({
-      owner: context.owner,
-      repo: context.repo,
-      path: file.filename,
-      ref: context.pull_number ? `pull/${context.pull_number}/head` : 'main'
-    });
-
-    const fileContent = Buffer.from(content.content, 'base64').toString('utf8');
-
-    changes.push({
-      filename: file.filename,
-      status: file.status,
-      additions: file.additions,
-      deletions: file.deletions,
-      patch: file.patch,  // The actual diff
-      content: fileContent.slice(0, 4000)  // Current content (truncated)
-    });
-  }
-
-  // Create a focused prompt for PR review
-  const prompt = `Review these PR changes and provide actionable feedback:
-
-${changes.map(file => `
-File: ${file.filename} (${file.status})
-Changes: +${file.additions} -${file.deletions}
-Diff:
-${file.patch || 'Binary file'}
-
-Current content preview:
-${file.content}
-`).join('\n---\n')}
-
-Provide:
-1. Any bugs or issues you spot
-2. Code quality improvements
-3. Security concerns
-4. Performance suggestions
-
-Keep feedback constructive and specific to the changes made.`;
-
-  // Call OpenAI once
-  const reviewComments = await callOpenAI(prompt);
-
-  // Post as a PR comment
-  await octokit.issues.createComment({
-    owner: context.owner,
-    repo: context.repo,
-    issue_number: context.pull_number,
-    body: `## 🤖 AI Review\n\n${reviewComments}`
-  });
-
-  console.log('PR review posted successfully');
-}
-
+// Main function
 async function main() {
+  // Handle deep review with create-pr
+  if (MODE === 'deep' && CREATE_PR) {
+    await runDeepReview();
+    return;
+  }
+
   const ctx = getContext();
   const isPR = !!ctx.prNumber;
 
-  // Use regular Octokit for local, getOctokit for Actions
+  // Handle light PR review in GitHub Actions
+  if (MODE === 'light' && isPR && !isLocal) {
+    await runLightPRReview();
+    return;
+  }
+
+  // Standard review flow
   const { Octokit } = await import('@octokit/rest');
   const octokit = isLocal
     ? new Octokit({ auth: process.env.GITHUB_TOKEN })
@@ -625,14 +602,12 @@ async function main() {
   console.log(`Mode: ${isPR ? 'PR' : 'release'} review`);
   console.log(`Environment: ${isLocal ? 'local' : 'GitHub Actions'}`);
 
-  if (isPR && isLocal) {
-    console.log(`Reviewing PR #${ctx.prNumber}`);
-  }
-
   let userPrompt = '';
 
   if (isPR) {
-    const diff = await gatherPrDiff(octokit, ctx.owner, ctx.repo, ctx.prNumber, MODE === 'light' ? 45000 : 120000);
+    const diff = await gatherPrDiff(octokit, ctx.owner, ctx.repo, ctx.prNumber, 
+      MODE === 'light' ? 45000 : 120000);
+    
     if (!diff) {
       console.log('No relevant diff found.');
       return;
@@ -648,10 +623,9 @@ ${diff}
 ${contextFiles ? `\nPROJECT CONTEXT (snippets):\n${contextFiles}` : ''}
 
 If you flag issues, propose concrete, minimal patches.
-For Alpine.js, check x-data/x-bind/x-on for reactivity and event safety.
-`;
+For Alpine.js, check x-data/x-bind/x-on for reactivity and event safety.`;
   } else {
-    // Tag/release deep scan
+    // Release review
     const contextFiles = collectContextFiles(SITE_DIR);
     const linkReport = readIfExists('link-report.json');
     const htmlValidate = readIfExists('htmlvalidate.json');
@@ -659,7 +633,6 @@ For Alpine.js, check x-data/x-bind/x-on for reactivity and event safety.
 
     userPrompt = `Mode: ${MODE.toUpperCase()}
 This is a release deep review for a static site (HTML + JSON + Alpine.js).
-Use the reports below to ground findings and propose fixes.
 
 PROJECT CONTEXT:
 ${contextFiles}
@@ -671,8 +644,7 @@ HTML VALIDATE (JSON):
 ${htmlValidate.slice(0, 20000)}
 
 LIGHTHOUSE (if present):
-${lhSummary.slice(0, 15000)}
-`;
+${lhSummary.slice(0, 15000)}`;
   }
 
   console.log('\nCalling OpenAI API...');
@@ -689,7 +661,7 @@ ${lhSummary.slice(0, 15000)}
   const title = MODE === 'light' ? '💡 AI Light Review' : '🛠️ AI Deep Release Review';
 
   if (isLocal) {
-    // For local testing, output to console
+    // Local output
     console.log('\n' + '='.repeat(80));
     console.log(title);
     console.log('='.repeat(80));
@@ -698,7 +670,7 @@ ${lhSummary.slice(0, 15000)}
 
     if (isPR) {
       console.log('\nTo post this review to GitHub, add --post flag');
-
+      
       if (process.argv.includes('--post')) {
         await octokit.rest.issues.createComment({
           owner: ctx.owner,
@@ -710,7 +682,7 @@ ${lhSummary.slice(0, 15000)}
       }
     } else {
       console.log('\nTo create an issue with this review, add --post flag');
-
+      
       if (process.argv.includes('--post')) {
         const issue = await octokit.rest.issues.create({
           owner: ctx.owner,
@@ -722,7 +694,7 @@ ${lhSummary.slice(0, 15000)}
       }
     }
   } else {
-    // In GitHub Actions, post directly
+    // GitHub Actions
     if (ctx.prNumber) {
       await octokit.rest.issues.createComment({
         owner: ctx.owner,
@@ -731,15 +703,20 @@ ${lhSummary.slice(0, 15000)}
         body: `### ${title}\n${reviewBody}`
       });
     } else {
-      // Handle CREATE_PR logic for Actions...
-      // (keep existing CREATE_PR code here)
+      // Create issue for non-PR reviews
+      await octokit.rest.issues.create({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        title: `${title} · ${new Date().toISOString()}`,
+        body: reviewBody
+      });
     }
   }
 
   console.log(`${MODE} review completed.`);
 }
 
-// Update error handling
+// Run main function
 if (isLocal) {
   main().catch(err => {
     console.error('ERROR:', err.message || String(err));
